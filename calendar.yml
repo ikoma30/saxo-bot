@@ -1,0 +1,10 @@
+# Indicator calendar (JST)
+- id: NFP
+  pair: USDJPY
+  ts: "2025-06-07 21:30"
+- id: CPI_US
+  pair: USDJPY
+  ts: "2025-06-13 21:30"
+- id: HICP_EU
+  pair: EURJPY
+  ts: "2025-06-18 18:00"

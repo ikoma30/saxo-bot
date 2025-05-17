@@ -1,0 +1,39 @@
+version: "3.9"
+services:
+  parent_core:
+    image: ghcr.io/ikoma30/saxo-bot-parent:${TAG}
+    env_file: .env.live
+    cpus: "0-1"
+    networks: [bot_net]
+    restart: unless-stopped
+
+  main_bot_core:
+    image: ghcr.io/ikoma30/saxo-bot-main:${TAG}
+    env_file: .env.live
+    cpus: "2"
+    networks: [bot_net]
+    depends_on: [parent_core]
+    restart: unless-stopped
+
+  micro_rev_core:
+    image: ghcr.io/ikoma30/saxo-bot-microrev:${TAG}
+    env_file: .env.live
+    cpus: "3"
+    networks: [bot_net]
+    depends_on: [parent_core]
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.51
+    volumes: [ "./prometheus.yml:/etc/prometheus/prometheus.yml:ro" ]
+    networks: [mon_net]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    networks: [mon_net]
+    restart: unless-stopped
+
+networks:
+  bot_net: {}
+  mon_net: {}
