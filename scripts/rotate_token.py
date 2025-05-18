@@ -7,14 +7,12 @@ It uses the PKCE flow to obtain a new refresh token and updates
 the GitHub secret accordingly.
 """
 
-import os
-import sys
-import json
 import base64
 import hashlib
-import secrets
+import os
 import requests
-from urllib.parse import urlencode
+import secrets
+import sys
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
@@ -27,18 +25,18 @@ AUTH_ENDPOINT = f"{BASE_URL}/auth"
 REDIRECT_URI = "https://localhost:8080/callback"
 
 
-def generate_code_verifier():
+def generate_code_verifier() -> str:
     """Generate a code verifier for PKCE."""
     return base64.urlsafe_b64encode(secrets.token_bytes(32)).decode('utf-8').rstrip('=')
 
 
-def generate_code_challenge(verifier):
+def generate_code_challenge(verifier: str) -> str:
     """Generate a code challenge from the verifier."""
     sha256 = hashlib.sha256(verifier.encode('utf-8')).digest()
     return base64.urlsafe_b64encode(sha256).decode('utf-8').rstrip('=')
 
 
-def refresh_token():
+def refresh_token() -> str:
     """Refresh the access token using the refresh token."""
     data = {
         'grant_type': 'refresh_token',
@@ -48,7 +46,7 @@ def refresh_token():
         'm': '0',  # Required for refresh token rotation
     }
     
-    response = requests.post(TOKEN_ENDPOINT, data=data)
+    response = requests.post(TOKEN_ENDPOINT, data=data, timeout=30)
     
     if response.status_code != 200:
         print(f"Error refreshing token: {response.status_code}")
