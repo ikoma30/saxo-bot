@@ -54,7 +54,7 @@ def retryable(
             for attempt in range(1, max_attempts + 1):
                 try:
                     result = func(*args, **kwargs)
-                    
+
                     if isinstance(result, requests.Response) and result.status_code in statuses:
                         wait_time = calculate_wait_time(attempt, backoff_factor, jitter_factor)
                         logger.warning(
@@ -63,7 +63,7 @@ def retryable(
                         )
                         time.sleep(wait_time)
                         continue
-                    
+
                     return result
                 except tuple(exceptions) as e:
                     last_exception = e
@@ -72,21 +72,21 @@ def retryable(
                         f"Request failed with {e.__class__.__name__}: {str(e)}, retrying in "
                         f"{wait_time:.2f}s (attempt {attempt}/{max_attempts})"
                     )
-                    
+
                     if attempt < max_attempts:
                         time.sleep(wait_time)
-            
+
             if last_exception:
                 logger.error(
                     f"All {max_attempts} retry attempts failed with "
                     f"{last_exception.__class__.__name__}: {str(last_exception)}"
                 )
                 raise last_exception
-            
+
             raise RuntimeError("Unexpected error in retry logic")
-        
+
         return cast(Callable[..., T], wrapper)
-    
+
     return decorator
 
 
@@ -103,8 +103,8 @@ def calculate_wait_time(attempt: int, backoff_factor: float, jitter_factor: floa
         Wait time in seconds
     """
     base_wait = backoff_factor ** (attempt - 1)
-    
+
     # Not used for cryptographic purposes, only for adding jitter to retry timings
     jitter = random.uniform(-jitter_factor, jitter_factor) * base_wait  # nosec B311
-    
+
     return base_wait + jitter

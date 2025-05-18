@@ -71,12 +71,10 @@ class SaxoClient:
             logger.info("Authentication successful")
             return bool(self.access_token)
         except requests.HTTPError as e:
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 logger.error(f"Authentication failed with status {e.response.status_code}")
                 raise SaxoApiError(
-                    "Authentication failed", 
-                    e.response.status_code, 
-                    e.response.json()
+                    "Authentication failed", e.response.status_code, e.response.json()
                 ) from e
             else:
                 logger.error(f"Authentication failed: {str(e)}")
@@ -94,7 +92,7 @@ class SaxoClient:
         """
         if not self.access_token:
             raise ValueError("Not authenticated. Call authenticate() first.")
-        
+
         return {"Authorization": f"Bearer {self.access_token}"}
 
     @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
@@ -129,14 +127,14 @@ class SaxoClient:
             logger.info(f"Successfully retrieved quote for {instrument}")
             return quote_data
         except requests.HTTPError as e:
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 logger.error(
                     f"Failed to get quote for {instrument} with status {e.response.status_code}"
                 )
                 raise SaxoApiError(
-                    f"Failed to get quote for {instrument}", 
-                    e.response.status_code, 
-                    e.response.json()
+                    f"Failed to get quote for {instrument}",
+                    e.response.status_code,
+                    e.response.json(),
                 ) from e
             else:
                 logger.error(f"Failed to get quote for {instrument}: {str(e)}")
@@ -172,32 +170,28 @@ class SaxoClient:
             return None
 
         headers = self._get_headers()
-        
+
         trade_version = "v3" if self.use_trade_v3 else "v2"
         endpoint = f"/trade/{trade_version}/orders"
-        
-        precheck_result = self._precheck_order(
-            instrument, order_type, side, amount, price
-        )
-        
+
+        precheck_result = self._precheck_order(instrument, order_type, side, amount, price)
+
         if not precheck_result:
             logger.error("Order precheck failed")
             return None
-        
+
         if precheck_result.get("BlockingDisclaimers"):
             for disclaimer in precheck_result.get("BlockingDisclaimers", []):
                 disclaimer_id = disclaimer.get("Id")
                 if not disclaimer_id:
                     continue
-                
+
                 if not self._accept_disclaimer(disclaimer_id):
                     logger.error(f"Failed to accept disclaimer {disclaimer_id}")
                     return None
-            
-            precheck_result = self._precheck_order(
-                instrument, order_type, side, amount, price
-            )
-            
+
+            precheck_result = self._precheck_order(instrument, order_type, side, amount, price)
+
             if not precheck_result:
                 logger.error("Order precheck failed after accepting disclaimers")
                 return None
@@ -210,7 +204,7 @@ class SaxoClient:
             "OrderType": order_type,
             "Uic": instrument,
         }
-        
+
         if price and order_type.lower() != "market":
             order_data["Price"] = str(price)
 
@@ -227,12 +221,10 @@ class SaxoClient:
             logger.info(f"Successfully placed order: {order_response.get('OrderId')}")
             return order_response
         except requests.HTTPError as e:
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 logger.error(f"Failed to place order with status {e.response.status_code}")
                 raise SaxoApiError(
-                    "Failed to place order", 
-                    e.response.status_code, 
-                    e.response.json()
+                    "Failed to place order", e.response.status_code, e.response.json()
                 ) from e
             else:
                 logger.error(f"Failed to place order: {str(e)}")
@@ -268,10 +260,10 @@ class SaxoClient:
             return None
 
         headers = self._get_headers()
-        
+
         trade_version = "v3" if self.use_trade_v3 else "v2"
         endpoint = f"/trade/{trade_version}/orders/precheck"
-        
+
         order_data = {
             "AccountKey": self.account_key,
             "AssetType": "FxSpot",
@@ -280,7 +272,7 @@ class SaxoClient:
             "OrderType": order_type,
             "Uic": instrument,
         }
-        
+
         if price and order_type.lower() != "market":
             order_data["Price"] = str(price)
 
@@ -297,12 +289,10 @@ class SaxoClient:
             logger.info("Order precheck completed")
             return precheck_result
         except requests.HTTPError as e:
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 logger.error(f"Order precheck failed with status {e.response.status_code}")
                 raise SaxoApiError(
-                    "Order precheck failed", 
-                    e.response.status_code, 
-                    e.response.json()
+                    "Order precheck failed", e.response.status_code, e.response.json()
                 ) from e
             else:
                 logger.error(f"Order precheck failed: {str(e)}")
@@ -340,22 +330,20 @@ class SaxoClient:
             logger.info(f"Successfully accepted disclaimer {disclaimer_id}")
             return True
         except requests.HTTPError as e:
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 logger.error(
                     f"Failed to accept disclaimer {disclaimer_id} "
                     f"with status {e.response.status_code}"
                 )
                 raise SaxoApiError(
-                    f"Failed to accept disclaimer {disclaimer_id}", 
-                    e.response.status_code, 
-                    e.response.json()
+                    f"Failed to accept disclaimer {disclaimer_id}",
+                    e.response.status_code,
+                    e.response.json(),
                 ) from e
             else:
                 logger.error(f"Failed to accept disclaimer {disclaimer_id}: {str(e)}")
                 raise SaxoApiError(
-                    f"Failed to accept disclaimer {disclaimer_id}", 
-                    None, 
-                    None
+                    f"Failed to accept disclaimer {disclaimer_id}", None, None
                 ) from e
         except requests.RequestException as e:
             logger.error(f"Disclaimer acceptance request failed: {str(e)}")
@@ -377,7 +365,7 @@ class SaxoClient:
             return False
 
         headers = self._get_headers()
-        
+
         trade_version = "v3" if self.use_trade_v3 else "v2"
         endpoint = f"/trade/{trade_version}/orders/{order_id}"
 
@@ -392,14 +380,12 @@ class SaxoClient:
             logger.info(f"Successfully cancelled order {order_id}")
             return True
         except requests.HTTPError as e:
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 logger.error(
                     f"Failed to cancel order {order_id} with status {e.response.status_code}"
                 )
                 raise SaxoApiError(
-                    f"Failed to cancel order {order_id}", 
-                    e.response.status_code, 
-                    e.response.json()
+                    f"Failed to cancel order {order_id}", e.response.status_code, e.response.json()
                 ) from e
             else:
                 logger.error(f"Failed to cancel order {order_id}: {str(e)}")
