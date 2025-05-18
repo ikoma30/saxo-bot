@@ -1,0 +1,84 @@
+name: Rotate Saxo RefreshToken
+
+concurrency:
+  group: rotate-rt           # 同名ジョブが走っていたら
+  cancel-in-progress: true   # 先行ジョブをキャンセル
+
+on:
+  schedule:
+    # ─ everyday 45 minutes ─
+    - cron: '*/45 * * * *'
+  workflow_dispatch:
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+
+    env:
+      # ─── Live 環境 ───
+      LIVE_CID:      ${{ secrets.LIVE_CLIENT_ID }}
+      LIVE_CSECRET:  ${{ secrets.LIVE_CLIENT_SECRET }}
+      OLD_LIVE_RT:   ${{ secrets.LIVE_REFRESH_TOKEN }}
+
+      # ─── Sim 環境 ───
+      SIM_CID:       ${{ secrets.SIM_CLIENT_ID }}
+      SIM_CSECRET:   ${{ secrets.SIM_CLIENT_SECRET }}
+      OLD_SIM_RT:    ${{ secrets.SIM_REFRESH_TOKEN }}
+
+    steps:
+    # 0) checkout は不要（API だけ）
+    - name: Install jq & gh
+      run: sudo apt-get update && sudo apt-get -y install jq gh
+
+    # 1) Live ─ refresh_token → new RT
+    - name: Renew LIVE RT
+      id: live
+      run: |
+        new=$(curl --fail --silent --ssl-no-revoke --ipv4 \
+          -X POST "https://live.logonvalidation.net/token" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -u "$LIVE_CID:$LIVE_CSECRET" \
+          --data-urlencode "grant_type=refresh_token" \
+          --data-urlencode "refresh_token=$OLD_LIVE_RT" \
+          --data-urlencode "redirect_uri=http://localhost:8000/callback" \
+          --data-urlencode "client_id=$LIVE_CID" \
+        | jq -r '.refresh_token')
+
+        [ -z "$new" ] && { echo "Live RT renew failed"; exit 1; }
+        echo "new=$new" >> $GITHUB_OUTPUT
+
+    # 2) Sim ─ 同上
+    - name: Renew SIM RT
+      id: sim
+      run: |
+        new=$(curl --fail --silent --ssl-no-revoke --ipv4 \
+          -X POST "https://sim.logonvalidation.net/token" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
+          -u "$SIM_CID:$SIM_CSECRET" \
+          --data-urlencode "grant_type=refresh_token" \
+          --data-urlencode "refresh_token=$OLD_SIM_RT" \
+          --data-urlencode "redirect_uri=http://localhost:8000/callback" \
+          --data-urlencode "client_id=$SIM_CID" \
+        | jq -r '.refresh_token')
+
+        [ -z "$new" ] && { echo "Sim RT renew failed"; exit 1; }
+        echo "new=$new" >> $GITHUB_OUTPUT
+
+    # 3) GitHub Secrets を上書き
+    - name: Write secrets back
+      env:
+        GH_TOKEN: ${{ secrets.GH_PAT_ROBOT }}  # ← Fine-grained PAT
+      run: |
+        echo "${{ steps.live.outputs.new }}" | \
+          gh secret set LIVE_REFRESH_TOKEN -R ${{ github.repository }} -f -
+        echo "${{ steps.sim.outputs.new }}" | \
+          gh secret set SIM_REFRESH_TOKEN  -R ${{ github.repository }} -f -
+
+    # 4) Slack通知（成功時）
+    - name: Notify Slack
+      if: success()
+      run: |
+        msg='✅ Saxo refresh tokens were rotated successfully.'
+        curl -X POST -H 'Content-type: application/json' \
+          --data "{\"text\":\"$msg\"}" \
+          ${{ secrets.SLACK_WEBHOOK }}
