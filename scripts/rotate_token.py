@@ -10,9 +10,10 @@ the GitHub secret accordingly.
 import base64
 import hashlib
 import os
-import requests
 import secrets
 import sys
+
+import requests
 
 CLIENT_ID = os.environ.get("CLIENT_ID")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
