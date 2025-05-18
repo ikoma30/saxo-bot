@@ -67,12 +67,16 @@ jobs:
     # 3) GitHub Secrets を上書き
     - name: Write secrets back
       env:
-        GH_TOKEN: ${{ secrets.GH_PAT_ROBOT }}  # ← Fine-grained PAT
+        GH_TOKEN: ${{ secrets.GH_PAT_ROBOT }}     # Fine-grained PAT (Secrets:RW Actions:RW)
+      # permissions ブロックが無い場合はジョブの先頭に追加
+      permissions:
+        actions: write
+        contents: read
       run: |
-        echo "${{ steps.live.outputs.new }}" | \
-          gh secret set LIVE_REFRESH_TOKEN -R ${{ github.repository }} -f -
-        echo "${{ steps.sim.outputs.new }}" | \
-          gh secret set SIM_REFRESH_TOKEN  -R ${{ github.repository }} -f -
+        gh secret set LIVE_REFRESH_TOKEN -R ${{ github.repository }} \
+          -b "${{ steps.live.outputs.new }}"
+        gh secret set SIM_REFRESH_TOKEN  -R ${{ github.repository }} \
+          -b "${{ steps.sim.outputs.new }}"
 
     # 4) Slack通知（成功時）
     - name: Notify Slack
