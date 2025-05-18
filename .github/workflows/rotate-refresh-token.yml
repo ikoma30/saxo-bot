@@ -68,10 +68,6 @@ jobs:
     - name: Write secrets back
       env:
         GH_TOKEN: ${{ secrets.GH_PAT_ROBOT }}     # Fine-grained PAT (Secrets:RW Actions:RW)
-      # permissions ブロックが無い場合はジョブの先頭に追加
-      permissions:
-        actions: write
-        contents: read
       run: |
         gh secret set LIVE_REFRESH_TOKEN -R ${{ github.repository }} \
           -b "${{ steps.live.outputs.new }}"
