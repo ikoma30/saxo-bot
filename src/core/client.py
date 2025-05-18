@@ -55,9 +55,7 @@ class SaxoClient:
         }
 
         try:
-            response = requests.post(
-                f"{self.base_url}/token", data=data, timeout=30
-            )
+            response = requests.post(f"{self.base_url}/token", data=data, timeout=30)
             response.raise_for_status()
             token_data = response.json()
             self.access_token = token_data.get("access_token")
