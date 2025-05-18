@@ -33,8 +33,8 @@ class SaxoClient:
         self.client_secret = os.environ.get(f"{environment.upper()}_CLIENT_SECRET")
         self.refresh_token = os.environ.get(f"{environment.upper()}_REFRESH_TOKEN")
         self.account_key = os.environ.get(f"{environment.upper()}_ACCOUNT_KEY")
-        self.access_token = None
-        self.token_expiry = None
+        self.access_token: str | None = None
+        self.token_expiry: str | None = None
 
     def authenticate(self) -> bool:
         """
@@ -84,7 +84,8 @@ class SaxoClient:
                 timeout=30,
             )
             response.raise_for_status()
-            return response.json()
+            account_info: dict[str, Any] = response.json()
+            return account_info
         except requests.RequestException as e:
             logger.error(f"Failed to get account info: {str(e)}")
             return None
@@ -109,7 +110,9 @@ class SaxoClient:
                 timeout=30,
             )
             response.raise_for_status()
-            return response.json().get("Data", [])
+            response_data: dict[str, Any] = response.json()
+            positions: list[dict[str, Any]] = response_data.get("Data", [])
+            return positions
         except requests.RequestException as e:
             logger.error(f"Failed to get positions: {str(e)}")
             return None
