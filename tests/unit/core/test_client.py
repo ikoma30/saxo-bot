@@ -2,10 +2,9 @@
 Unit tests for the SaxoClient class.
 """
 
-from typing import Any, Dict, List, Optional
+import os
 from unittest.mock import MagicMock, patch
 
-import os
 import requests
 
 from src.core.client import SaxoClient
@@ -25,7 +24,8 @@ class TestSaxoClient:
 
     def teardown_method(self) -> None:
         """Clean up after each test method."""
-        for key in ["LIVE_CLIENT_ID", "LIVE_CLIENT_SECRET", "LIVE_REFRESH_TOKEN", "LIVE_ACCOUNT_KEY"]:
+        for key in ["LIVE_CLIENT_ID", "LIVE_CLIENT_SECRET", "LIVE_REFRESH_TOKEN", 
+                  "LIVE_ACCOUNT_KEY"]:
             if key in os.environ:
                 del os.environ[key]
 
@@ -76,6 +76,16 @@ class TestSaxoClient:
 
         assert result is False  # nosec: B101 # pytest assertion
         assert self.client.access_token is None  # nosec: B101 # pytest assertion
+        
+    def test_authenticate_missing_credentials(self) -> None:
+        """Test authentication failure due to missing credentials."""
+        self.client.client_id = None
+        self.client.client_secret = None
+        self.client.refresh_token = None
+        
+        result = self.client.authenticate()
+        
+        assert result is False  # nosec: B101 # pytest assertion
 
     @patch("requests.get")
     def test_get_account_info_success(self, mock_get: MagicMock) -> None:
@@ -95,6 +105,25 @@ class TestSaxoClient:
         assert args[0] == "https://gateway.saxobank.com/openapi/port/v1/accounts/test_account_key"  # nosec: B101 # pytest assertion
         assert kwargs["headers"]["Authorization"] == "Bearer test_token"  # nosec: B101 # pytest assertion
         assert kwargs["timeout"] == 30  # nosec: B101 # pytest assertion
+        
+    def test_get_account_info_missing_credentials(self) -> None:
+        """Test account info retrieval failure due to missing credentials."""
+        self.client.access_token = None
+        
+        result = self.client.get_account_info()
+        
+        assert result is None  # nosec: B101 # pytest assertion
+    
+    @patch("requests.get")
+    def test_get_account_info_failure(self, mock_get: MagicMock) -> None:
+        """Test account info retrieval failure due to HTTP error."""
+        self.client.access_token = "test_token"  # nosec: B105 # Testing value
+        
+        mock_get.side_effect = requests.RequestException("Connection error")
+        
+        result = self.client.get_account_info()
+        
+        assert result is None  # nosec: B101 # pytest assertion
 
     @patch("requests.get")
     def test_get_positions_success(self, mock_get: MagicMock) -> None:
@@ -114,3 +143,22 @@ class TestSaxoClient:
         assert args[0] == "https://gateway.saxobank.com/openapi/port/v1/positions?FieldGroups=DisplayAndFormat"  # nosec: B101 # pytest assertion
         assert kwargs["headers"]["Authorization"] == "Bearer test_token"  # nosec: B101 # pytest assertion
         assert kwargs["timeout"] == 30  # nosec: B101 # pytest assertion
+        
+    def test_get_positions_missing_credentials(self) -> None:
+        """Test positions retrieval failure due to missing credentials."""
+        self.client.access_token = None
+        
+        result = self.client.get_positions()
+        
+        assert result is None  # nosec: B101 # pytest assertion
+    
+    @patch("requests.get")
+    def test_get_positions_failure(self, mock_get: MagicMock) -> None:
+        """Test positions retrieval failure due to HTTP error."""
+        self.client.access_token = "test_token"  # nosec: B105 # Testing value
+        
+        mock_get.side_effect = requests.RequestException("Connection error")
+        
+        result = self.client.get_positions()
+        
+        assert result is None  # nosec: B101 # pytest assertion

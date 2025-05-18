@@ -6,10 +6,9 @@ This module provides the SaxoClient class for interacting with the Saxo Bank Ope
 
 import logging
 import os
-from typing import Dict, Any, Optional, List
+from typing import Any
 
 import requests
-from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +16,7 @@ logger = logging.getLogger(__name__)
 class SaxoClient:
     """Client for interacting with the Saxo Bank OpenAPI."""
 
-    def __init__(self, environment: str = "live"):
+    def __init__(self, environment: str = "live") -> None:
         """
         Initialize the Saxo Bank API client.
 
@@ -67,12 +66,12 @@ class SaxoClient:
             logger.error(f"Authentication failed: {str(e)}")
             return False
 
-    def get_account_info(self) -> Optional[Dict[str, Any]]:
+    def get_account_info(self) -> dict[str, Any] | None:
         """
         Get account information from the Saxo Bank API.
 
         Returns:
-            Optional[Dict[str, Any]]: Account information or None if the request failed
+            dict[str, Any] | None: Account information or None if the request failed
         """
         if not self.access_token or not self.account_key:
             logger.error("Not authenticated or missing account key")
@@ -92,12 +91,12 @@ class SaxoClient:
             logger.error(f"Failed to get account info: {str(e)}")
             return None
 
-    def get_positions(self) -> Optional[List[Dict[str, Any]]]:
+    def get_positions(self) -> list[dict[str, Any]] | None:
         """
         Get current positions from the Saxo Bank API.
 
         Returns:
-            Optional[List[Dict[str, Any]]]: List of positions or None if the request failed
+            list[dict[str, Any]] | None: List of positions or None if the request failed
         """
         if not self.access_token or not self.account_key:
             logger.error("Not authenticated or missing account key")
