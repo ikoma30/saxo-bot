@@ -1,24 +1,35 @@
 #!/usr/bin/env bash
+
 set -euo pipefail
 
-ENV=${1:-live}   # live | sim
-cd /opt/saxo-bot
+ENV=${1:-}
+if [[ "$ENV" != "live" && "$ENV" != "sim" ]]; then
+  echo "Usage: $0 {live|sim}"
+  exit 1
+fi
 
-# 1. 取得した最新リリースタグを変数に
-TAG=$(curl -s https://api.github.com/repos/ikoma30/saxo-bot/releases/latest \
-        | jq -r '.tag_name')
-export TAG
+ENV_FILE="/opt/saxo-bot/.env.${ENV}"
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "Error: Environment file $ENV_FILE not found"
+  exit 1
+fi
 
-# 2. 適切な compose ファイルを選択
-COMPOSE_FILE="docker/docker-compose.${ENV}.yml"
+source "${ENV_FILE}"
 
-# 3. イメージ取得＆起動
+TAG=$(curl -s https://api.github.com/repos/ikoma30/saxo-bot/releases/latest | jq -r '.tag_name')
+export TAG  # Register in environment variable to allow docker-compose to expand ${TAG}
+
+COMPOSE_FILE="/opt/saxo-bot/docker-compose.${ENV}.yml"
 docker compose -f "${COMPOSE_FILE}" pull
 docker compose -f "${COMPOSE_FILE}" up -d --remove-orphans
 
-# 4. 30 秒以内に healthz==OK を確認
-timeout 30 bash -c '
-  until curl -sf http://localhost:8080/healthz; do sleep 2; done
-'
+for i in {1..30}; do
+  if curl -fs http://localhost:8080/healthz; then
+    echo "✅ oneclick_start ${ENV} completed."
+    exit 0
+  fi
+  sleep 1
+done
 
-echo "✅ One-click start (${ENV}) done."
+echo "❌ Healthz check failed after 30 seconds"
+exit 1
