@@ -50,26 +50,26 @@ def refresh_token() -> str:
         "client_secret": CLIENT_SECRET,
         "m": "0",  # Required for refresh token rotation
     }
-    
+
     response = requests.post(TOKEN_ENDPOINT, data=data, timeout=30)
-    
+
     if response.status_code != 200:
         print(f"Error refreshing token: {response.status_code}")
         print(response.text)
         sys.exit(1)
-    
+
     token_data = response.json()
     new_refresh_token = token_data.get("refresh_token")
-    
+
     if not new_refresh_token:
         print("No refresh token in response")
         sys.exit(1)
-    
+
     new_refresh_token_str: str = new_refresh_token
-    
+
     with open(os.environ["GITHUB_ENV"], "a") as f:
         f.write(f"NEW_REFRESH_TOKEN={new_refresh_token_str}\n")
-    
+
     print(f"Successfully rotated refresh token for {ENVIRONMENT} environment")
     return new_refresh_token_str
 
