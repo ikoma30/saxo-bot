@@ -2,7 +2,7 @@
 Unit tests for the retry_utils module.
 """
 
-from time import sleep
+
 from unittest.mock import MagicMock, patch
 
 import pytest

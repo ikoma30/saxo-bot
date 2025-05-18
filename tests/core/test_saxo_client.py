@@ -365,6 +365,27 @@ class TestSaxoClient:
         )
 
         assert result is None  # nosec: B101 # pytest assertion
+        
+    @patch("requests.post")
+    def test_place_order_http_error_without_response(self, mock_post: MagicMock) -> None:
+        """Test order placement with HTTP error but no response attribute."""
+        self.client.access_token = "test_token"  # nosec: B105 # Testing value
+        self.client.account_key = "test_account_key"
+        
+        with patch("src.core.saxo_client.SaxoClient._precheck_order") as mock_precheck:
+            mock_precheck.return_value = {"PreCheckResult": "OK"}
+            
+            error = requests.HTTPError("HTTP Error")
+            mock_post.side_effect = error
+            
+            with pytest.raises(SaxoApiError) as excinfo:
+                self.client.place_order(
+                    instrument="EURUSD", order_type="Market", side="Buy", amount=1000
+                )
+            
+            assert "Failed to place order" in str(excinfo.value)  # nosec: B101 # pytest assertion
+            assert excinfo.value.status_code is None  # nosec: B101 # pytest assertion
+            assert excinfo.value.response_body is None  # nosec: B101 # pytest assertion
 
     @patch("requests.post")
     def test_precheck_order_success(self, mock_post: MagicMock) -> None:
@@ -431,6 +452,24 @@ class TestSaxoClient:
         )
 
         assert result is None  # nosec: B101 # pytest assertion
+        
+    @patch("requests.post")
+    def test_precheck_order_http_error_without_response(self, mock_post: MagicMock) -> None:
+        """Test order precheck with HTTP error but no response attribute."""
+        self.client.access_token = "test_token"  # nosec: B105 # Testing value
+        self.client.account_key = "test_account_key"
+        
+        error = requests.HTTPError("HTTP Error")
+        mock_post.side_effect = error
+        
+        with pytest.raises(SaxoApiError) as excinfo:
+            self.client._precheck_order(
+                instrument="EURUSD", order_type="Market", side="Buy", amount=1000
+            )
+        
+        assert "Order precheck failed" in str(excinfo.value)  # nosec: B101 # pytest assertion
+        assert excinfo.value.status_code is None  # nosec: B101 # pytest assertion
+        assert excinfo.value.response_body is None  # nosec: B101 # pytest assertion
 
     @patch("requests.put")
     def test_accept_disclaimer_success(self, mock_put: MagicMock) -> None:
@@ -464,6 +503,21 @@ class TestSaxoClient:
         result = self.client._accept_disclaimer("disclaimer1")
 
         assert result is False  # nosec: B101 # pytest assertion
+        
+    @patch("requests.put")
+    def test_accept_disclaimer_http_error_without_response(self, mock_put: MagicMock) -> None:
+        """Test disclaimer acceptance with HTTP error but no response attribute."""
+        self.client.access_token = "test_token"  # nosec: B105 # Testing value
+        
+        error = requests.HTTPError("HTTP Error")
+        mock_put.side_effect = error
+        
+        with pytest.raises(SaxoApiError) as excinfo:
+            self.client._accept_disclaimer("disclaimer1")
+        
+        assert "Failed to accept disclaimer disclaimer1" in str(excinfo.value)  # nosec: B101 # pytest assertion
+        assert excinfo.value.status_code is None  # nosec: B101 # pytest assertion
+        assert excinfo.value.response_body is None  # nosec: B101 # pytest assertion
 
     def test_accept_disclaimer_missing_credentials(self) -> None:
         """Test disclaimer acceptance failure due to missing credentials."""
@@ -529,6 +583,21 @@ class TestSaxoClient:
         result = self.client.cancel_order("123456")
 
         assert result is False  # nosec: B101 # pytest assertion
+        
+    @patch("requests.delete")
+    def test_cancel_order_http_error_without_response(self, mock_delete: MagicMock) -> None:
+        """Test order cancellation with HTTP error but no response attribute."""
+        self.client.access_token = "test_token"  # nosec: B105 # Testing value
+        
+        error = requests.HTTPError("HTTP Error")
+        mock_delete.side_effect = error
+        
+        with pytest.raises(SaxoApiError) as excinfo:
+            self.client.cancel_order("123456")
+        
+        assert "Failed to cancel order 123456" in str(excinfo.value)  # nosec: B101 # pytest assertion
+        assert excinfo.value.status_code is None  # nosec: B101 # pytest assertion
+        assert excinfo.value.response_body is None  # nosec: B101 # pytest assertion
 
     def test_cancel_order_missing_credentials(self) -> None:
         """Test order cancellation failure due to missing credentials."""

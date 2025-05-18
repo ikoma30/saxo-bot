@@ -1,3 +1,4 @@
+# ruff: noqa: S311
 """
 Retry utilities for Saxo Bot.
 
@@ -6,7 +7,7 @@ and jitter, as specified in the Saxo OpenAPI documentation.
 """
 
 import logging
-import random
+import random  # nosec B311
 import time
 from collections.abc import Callable
 from functools import wraps
@@ -103,6 +104,7 @@ def calculate_wait_time(attempt: int, backoff_factor: float, jitter_factor: floa
     """
     base_wait = backoff_factor ** (attempt - 1)
     
-    jitter = random.uniform(-jitter_factor, jitter_factor) * base_wait
+    # Not used for cryptographic purposes, only for adding jitter to retry timings
+    jitter = random.uniform(-jitter_factor, jitter_factor) * base_wait  # nosec B311
     
     return base_wait + jitter
