@@ -5,7 +5,6 @@ This module provides the LatencyGuard class for monitoring and controlling API l
 """
 
 import logging
-import time
 from collections import deque
 
 logger = logging.getLogger("saxo")

@@ -6,8 +6,9 @@ Tests minimal functionality with small-lot orders to verify KPIs.
 
 import logging
 import os
-import pytest
 import time
+
+import pytest
 
 from src.core.saxo_client import SaxoClient
 
@@ -70,7 +71,7 @@ def test_main_bot_canary() -> None:
     total_loss = sum(losses)
     pf = total_profit / total_loss if total_loss > 0 else float('inf')
     
-    logger.info(f"Main BOT Canary Test Results:")
+    logger.info("Main BOT Canary Test Results:")
     logger.info(f"Fill Rate: {fill_rate:.2f}%")
     logger.info(f"Profit Factor: {pf:.2f}")
     logger.info(f"Average Latency: {avg_latency:.2f} ms")
@@ -137,7 +138,7 @@ def test_micro_rev_bot_canary() -> None:
     total_loss = sum(losses)
     pf = total_profit / total_loss if total_loss > 0 else float('inf')
     
-    logger.info(f"Micro-Rev BOT Canary Test Results:")
+    logger.info("Micro-Rev BOT Canary Test Results:")
     logger.info(f"Fill Rate: {fill_rate:.2f}%")
     logger.info(f"Profit Factor: {pf:.2f}")
     logger.info(f"Average Latency: {avg_latency:.2f} ms")

@@ -58,8 +58,8 @@ class KillSwitch:
         
         if now < self.activated_until:
             logger.warning(
-                f"KillSwitch active: trading suspended for {int((self.activated_until - now) / 3600)} "
-                f"more hours"
+                f"KillSwitch active: trading suspended for "
+                f"{int((self.activated_until - now) / 3600)} more hours"
             )
             return False
         

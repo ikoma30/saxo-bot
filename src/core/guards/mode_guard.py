@@ -63,7 +63,8 @@ class ModeGuard:
         
         if now < self.pause_until:
             logger.warning(
-                f"ModeGuard is active: trading paused for {int(self.pause_until - now)} more seconds"
+                f"ModeGuard is active: trading paused for "
+                f"{int(self.pause_until - now)} more seconds"
             )
             return False
         

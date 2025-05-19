@@ -16,11 +16,11 @@ import requests
 from src.common.exceptions import SaxoApiError
 from src.common.retry_utils import retryable
 from src.core.guards import (
-    SlippageGuard,
-    ModeGuard,
     KillSwitch,
     LatencyGuard,
+    ModeGuard,
     PriorityGuard,
+    SlippageGuard,
     TradingMode,
 )
 
@@ -207,8 +207,13 @@ class SaxoClient:
             return {"OrderRejected": True, "Reason": "KillSwitch: Daily loss limit exceeded"}
             
         if precheck_result.get("ModeGuardRejection"):
-            logger.error("Order rejected by ModeGuard due to excessive mode transitions")
-            return {"OrderRejected": True, "Reason": "ModeGuard: Trading paused due to excessive mode transitions"}
+            logger.error(
+                "Order rejected by ModeGuard due to excessive mode transitions"
+            )
+            return {
+                "OrderRejected": True, 
+                "Reason": "ModeGuard: Trading paused due to excessive mode transitions"
+            }
             
         if precheck_result.get("LatencyGuardRejection"):
             logger.error("Order rejected by LatencyGuard due to high API latency")

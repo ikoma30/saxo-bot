@@ -7,8 +7,9 @@ Tests SIM Refresh-Token 24h validity check.
 import datetime
 import logging
 import os
-import pytest
 import time
+
+import pytest
 
 from src.core.saxo_client import SaxoClient
 
@@ -58,7 +59,9 @@ def test_sim_token_24h_validity() -> None:
     assert client.access_token is not None  # nosec: B101 # pytest assertion
     
     if token_expiry:
-        expiry_time = datetime.datetime.fromisoformat(token_expiry.replace("Z", "+00:00")).timestamp()
+        expiry_time = datetime.datetime.fromisoformat(
+            token_expiry.replace("Z", "+00:00")
+        ).timestamp()
         remaining_validity_hours = (expiry_time - start_time) / 3600
         
         logger.info(f"Token validity remaining: {remaining_validity_hours:.2f} hours")

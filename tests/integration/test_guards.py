@@ -6,14 +6,13 @@ Tests SlippageGuard, ModeGuard, KillSwitch, LatencyGuard, and PriorityGuard.
 
 import logging
 import os
-import pytest
-import time
 
-from src.core.guards.slippage_guard import SlippageGuard
-from src.core.guards.mode_guard import ModeGuard, TradingMode
+import pytest
+
 from src.core.guards.kill_switch import KillSwitch
 from src.core.guards.latency_guard import LatencyGuard
-from src.core.guards.priority_guard import PriorityGuard, BotPriority, BotState
+from src.core.guards.mode_guard import ModeGuard, TradingMode
+from src.core.guards.priority_guard import BotPriority, BotState, PriorityGuard
 from src.core.saxo_client import SaxoClient
 
 logger = logging.getLogger("test")
