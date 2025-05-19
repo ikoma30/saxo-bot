@@ -195,13 +195,27 @@ def main() -> int:
         int: Exit code (0 for success, 1 for failure)
     """
     parser = argparse.ArgumentParser(description="Run a canary test with small trades")
-    parser.add_argument("--instrument", default=DEFAULT_INSTRUMENT, help="Trading instrument (default: USDJPY)")
-    parser.add_argument("--trades", type=int, default=DEFAULT_TRADES, help="Number of trades to execute (default: 10)")
-    parser.add_argument("--lot", type=float, default=DEFAULT_LOT_SIZE, help="Lot size for trades (default: 0.01)")
-    parser.add_argument("--interval", type=int, default=DEFAULT_INTERVAL, help="Time between trades in seconds (default: 5)")
-    
+    parser.add_argument(
+        "--instrument", default=DEFAULT_INSTRUMENT, help="Trading instrument (default: USDJPY)"
+    )
+    parser.add_argument(
+        "--trades",
+        type=int,
+        default=DEFAULT_TRADES,
+        help="Number of trades to execute (default: 10)",
+    )
+    parser.add_argument(
+        "--lot", type=float, default=DEFAULT_LOT_SIZE, help="Lot size for trades (default: 0.01)"
+    )
+    parser.add_argument(
+        "--interval",
+        type=int,
+        default=DEFAULT_INTERVAL,
+        help="Time between trades in seconds (default: 5)",
+    )
+
     args = parser.parse_args()
-    
+
     fill_rate, pf, orders_data = run_canary_test(
         instrument=args.instrument,
         num_trades=args.trades,
@@ -245,7 +259,8 @@ def main() -> int:
         )
 
     with open(html_path, "w") as f:
-        f.write(f"""
+        f.write(
+            f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -309,10 +324,12 @@ def main() -> int:
                     <th>Filled</th>
                     <th>Latency (ms)</th>
                 </tr>
-        """)
-        
+        """
+        )
+
         for order in orders_data:
-            f.write(f"""
+            f.write(
+                f"""
                 <tr>
                     <td>{order.get('order_id', 'N/A')}</td>
                     <td>{order.get('side', 'N/A')}</td>
@@ -321,15 +338,18 @@ def main() -> int:
                     <td>{'Yes' if order.get('filled', False) else 'No'}</td>
                     <td>{order.get('latency_ms', 'N/A')}</td>
                 </tr>
-            """)
-            
-        f.write("""
+            """
+            )
+
+        f.write(
+            """
             </table>
             
             <p>Account information has been redacted for security reasons.</p>
         </body>
         </html>
-        """)
+        """
+        )
 
     logger.info(f"Stored raw fills JSON at {json_path}")
     logger.info(f"Generated HTML report at {html_path}")

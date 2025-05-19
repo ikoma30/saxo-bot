@@ -28,7 +28,9 @@ REDACT_REGIONS = [
 ]
 
 
-def sanitize_screenshot(input_file: str, output_file: str, regions: Optional[List[Tuple[int, int, int, int]]] = None) -> bool:
+def sanitize_screenshot(
+    input_file: str, output_file: str, regions: Optional[List[Tuple[int, int, int, int]]] = None
+) -> bool:
     """
     Sanitize a screenshot by adding black boxes over sensitive information.
 
@@ -42,35 +44,39 @@ def sanitize_screenshot(input_file: str, output_file: str, regions: Optional[Lis
     """
     try:
         logger.info(f"Sanitizing screenshot: {input_file}")
-        
+
         if not os.path.exists(input_file):
             logger.error(f"Input file does not exist: {input_file}")
             return False
-            
+
         if regions is None:
             regions = REDACT_REGIONS
-            
+
         img = Image.open(input_file)
         draw = ImageDraw.Draw(img)
-        
+
         for region in regions:
             draw.rectangle(region, fill="black")
-        
+
         try:
             font = ImageFont.truetype("Arial", 20)
         except IOError:
             font = ImageFont.load_default()
-            
+
         draw.rectangle((0, 0, img.width, 40), fill="#ffeeee")
-        draw.text((10, 10), "Notice: This screenshot has been sanitized for security and privacy reasons.", 
-                  fill="black", font=font)
-        
+        draw.text(
+            (10, 10),
+            "Notice: This screenshot has been sanitized for security and privacy reasons.",
+            fill="black",
+            font=font,
+        )
+
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
         img.save(output_file)
-        
+
         logger.info(f"Sanitized screenshot saved to: {output_file}")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error sanitizing screenshot: {str(e)}")
         return False
@@ -86,9 +92,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Sanitize screenshot")
     parser.add_argument("--input", required=True, help="Path to input screenshot file")
     parser.add_argument("--output", required=True, help="Path to output sanitized screenshot file")
-    
+
     args = parser.parse_args()
-    
+
     if sanitize_screenshot(args.input, args.output):
         return 0
     else:
