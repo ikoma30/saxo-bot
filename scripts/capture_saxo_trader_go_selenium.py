@@ -25,8 +25,8 @@ logging.basicConfig(
 logger = logging.getLogger("saxo_trader_go")
 
 REPORTS_DIR = Path(__file__).parent.parent / "reports"
-ACCOUNT_KEY = "PjXXja494N5ZimF-lPRqgQ=="
-ACCOUNT_ID = "TRIAL_20477947"
+ACCOUNT_KEY = os.environ.get("SIM_ACCOUNT_KEY", "REDACTED")
+ACCOUNT_ID = os.environ.get("SIM_ACCOUNT_ID", "REDACTED")
 
 
 def capture_screenshot() -> str:

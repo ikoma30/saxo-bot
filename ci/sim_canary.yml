@@ -1,0 +1,103 @@
+name: SIM Canary Test
+
+on:
+  workflow_dispatch:  # Allow manual trigger
+  schedule:
+    - cron: '0 0 * * 1'  # Weekly on Monday at midnight UTC
+
+jobs:
+  sim-canary:
+    name: Run SIM Canary Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, self-hosted]
+      fail-fast: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install --no-root
+      
+      - name: Create .env.sim file with credentials
+        run: |
+          echo "SIM_CLIENT_ID=${{ secrets.SIM_CLIENT_ID }}" > .env.sim
+          echo "SIM_CLIENT_SECRET=${{ secrets.SIM_CLIENT_SECRET }}" >> .env.sim
+          echo "SIM_REFRESH_TOKEN=${{ secrets.SIM_REFRESH_TOKEN }}" >> .env.sim
+          echo "SIM_ACCOUNT_KEY=${{ secrets.SIM_ACCOUNT_KEY }}" >> .env.sim
+      
+      - name: Run SIM canary test
+        run: |
+          source .env.sim
+          python scripts/run_canary_test_with_args.py \
+            --instrument USDJPY \
+            --trades 10 \
+            --lot 0.01
+        
+      - name: Generate Prometheus metrics
+        run: |
+          source .env.sim
+          python scripts/get_prometheus_metrics.py
+        continue-on-error: true
+      
+      - name: Sanitize HTML trade report
+        run: |
+          python scripts/sanitize_html.py \
+            --input reports/saxo_trader_go.html \
+            --output reports/saxo_trader_go_sanitized.html
+        continue-on-error: true
+      
+      - name: Verify KPI thresholds
+        run: |
+          # Find the latest JSON file
+          LATEST_CANARY_JSON=$(ls -t reports/canary_*.json | head -1)
+          if [ -z "$LATEST_CANARY_JSON" ]; then
+            echo "No canary test results found"
+            exit 1
+          fi
+          
+          # Check fill rate (≥ 92%)
+          FILL_RATE=$(jq '.metrics.fill_rate' "$LATEST_CANARY_JSON")
+          if (( $(echo "$FILL_RATE < 92" | bc -l) )); then
+            echo "Fill rate $FILL_RATE% is below threshold of 92%"
+            exit 1
+          fi
+          
+          # Check performance factor (≥ 0.9)
+          PF=$(jq '.metrics.performance_factor' "$LATEST_CANARY_JSON")
+          if (( $(echo "$PF < 0.9" | bc -l) )); then
+            echo "Performance factor $PF is below threshold of 0.9"
+            exit 1
+          fi
+          
+          # Check average latency (≤ 250 ms)
+          LATENCY=$(jq '.metrics.avg_latency_ms' "$LATEST_CANARY_JSON")
+          if (( $(echo "$LATENCY > 250" | bc -l) )); then
+            echo "Average latency $LATENCY ms exceeds threshold of 250 ms"
+            exit 1
+          fi
+          
+          echo "All KPI thresholds met:"
+          echo "- Fill rate: $FILL_RATE% (≥ 92% required) ✅"
+          echo "- Performance factor: $PF (≥ 0.9 required) ✅"
+          echo "- Average latency: $LATENCY ms (≤ 250 ms required) ✅"
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: canary-test-reports-${{ matrix.os }}
+          path: |
+            reports/canary_*.json
+            reports/prometheus_metrics_*.json
+            reports/saxo_trader_go_sanitized.html
+          retention-days: 14

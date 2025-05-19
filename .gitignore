@@ -33,6 +33,7 @@ poetry.lock
 
 # Environment
 .env
+.env.sim
 .venv
 env/
 venv/
@@ -47,3 +48,6 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated artifacts
+reports/
