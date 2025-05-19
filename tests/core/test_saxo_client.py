@@ -392,9 +392,7 @@ class TestSaxoClient:
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
         self.client.account_key = "test_account_key"
 
-        mock_get_quote.return_value = {
-            "Quote": {"Ask": 1.1235, "Bid": 1.1225}
-        }
+        mock_get_quote.return_value = {"Quote": {"Ask": 1.1235, "Bid": 1.1225}}
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -431,9 +429,7 @@ class TestSaxoClient:
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
         self.client.account_key = "test_account_key"
 
-        mock_get_quote.return_value = {
-            "Quote": {"Ask": 1.1235, "Bid": 1.1225}
-        }
+        mock_get_quote.return_value = {"Quote": {"Ask": 1.1235, "Bid": 1.1225}}
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -456,9 +452,7 @@ class TestSaxoClient:
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
         self.client.account_key = "test_account_key"
 
-        mock_get_quote.return_value = {
-            "Quote": {"Ask": 1.1235, "Bid": 1.1225}
-        }
+        mock_get_quote.return_value = {"Quote": {"Ask": 1.1235, "Bid": 1.1225}}
 
         mock_post.side_effect = requests.RequestException("Connection error")
 
@@ -477,9 +471,7 @@ class TestSaxoClient:
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
         self.client.account_key = "test_account_key"
 
-        mock_get_quote.return_value = {
-            "Quote": {"Ask": 1.1235, "Bid": 1.1225}
-        }
+        mock_get_quote.return_value = {"Quote": {"Ask": 1.1235, "Bid": 1.1225}}
 
         error = requests.HTTPError("HTTP Error")
         mock_post.side_effect = error
@@ -644,10 +636,8 @@ class TestSaxoClient:
         with patch("requests.post") as mock_post, patch(
             "src.core.saxo_client.SaxoClient.get_quote"
         ) as mock_get_quote:
-            mock_get_quote.return_value = {
-                "Quote": {"Ask": 1.1235, "Bid": 1.1225}
-            }
-            
+            mock_get_quote.return_value = {"Quote": {"Ask": 1.1235, "Bid": 1.1225}}
+
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"PreCheckResult": "OK"}
@@ -661,7 +651,7 @@ class TestSaxoClient:
             assert (
                 args[0] == "https://gateway.saxobank.com/openapi/trade/v3/orders/precheck"
             )  # nosec: B101 # pytest assertion
-            
+
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
     def test_place_order_slippage_guard_rejection(self, mock_precheck: MagicMock) -> None:
         """Test order placement failure due to SlippageGuard rejection."""
@@ -674,5 +664,8 @@ class TestSaxoClient:
             instrument="EURUSD", order_type="Market", side="Buy", amount=1000
         )
 
-        assert result == {"OrderRejected": True, "Reason": "SlippageGuard: Excessive spread"}  # nosec: B101 # pytest assertion
+        assert result == {
+            "OrderRejected": True,
+            "Reason": "SlippageGuard: Excessive spread",
+        }  # nosec: B101 # pytest assertion
         mock_precheck.assert_called_once()

@@ -23,15 +23,15 @@ logger = logging.getLogger("token_validity")
 def check_token_validity(environment: str) -> bool:
     """
     Check if the refresh token for the specified environment is valid.
-    
+
     Args:
         environment: Either "live" or "sim"
-        
+
     Returns:
         bool: True if token is valid, False otherwise
     """
     client = SaxoClient(environment=environment)
-    
+
     if not client.client_id:
         logger.error(f"{environment.upper()}_CLIENT_ID environment variable not set")
         return False
@@ -41,7 +41,7 @@ def check_token_validity(environment: str) -> bool:
     if not client.refresh_token:
         logger.error(f"{environment.upper()}_REFRESH_TOKEN environment variable not set")
         return False
-        
+
     try:
         result = client.authenticate()
         if result:
@@ -63,6 +63,6 @@ if __name__ == "__main__":
             sys.exit(1)
     else:
         env = "sim"  # Default to sim environment
-        
+
     valid = check_token_validity(env)
     sys.exit(0 if valid else 1)

@@ -269,14 +269,14 @@ class SaxoClient:
         if not quote_data or "Quote" not in quote_data:
             logger.error(f"Failed to get quote for {instrument}, cannot check spread")
             return None
-        
+
         quote = quote_data["Quote"]
         ask = float(quote.get("Ask", 0))
         bid = float(quote.get("Bid", 0))
         mid = (ask + bid) / 2
-        
+
         fill_price = ask if side == "Buy" else bid
-        
+
         if not self.slippage_guard.check_slippage(instrument, mid, fill_price):
             logger.error(f"SlippageGuard rejected {side} order for {instrument} - excessive spread")
             return {"SlippageGuardRejection": True, "PreCheckResult": "Rejected"}

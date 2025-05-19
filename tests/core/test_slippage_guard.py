@@ -52,7 +52,7 @@ class TestSlippageGuard:
         """Test checking acceptable slippage."""
         for _ in range(15):
             self.guard.add_slippage("EURUSD", 0.5)
-        
+
         result = self.guard.check_slippage("EURUSD", 1.1230, 1.1234)
         assert result is True  # nosec: B101 # pytest assertion
 
@@ -60,7 +60,7 @@ class TestSlippageGuard:
         """Test checking excessive slippage."""
         for _ in range(15):
             self.guard.add_slippage("EURUSD", 0.5)
-        
+
         result = self.guard.check_slippage("EURUSD", 1.1230, 1.1240)
         assert result is False  # nosec: B101 # pytest assertion
 
@@ -68,6 +68,6 @@ class TestSlippageGuard:
         """Test checking slippage with no history."""
         result = self.guard.check_slippage("EURUSD", 1.1230, 1.1240)
         assert result is False  # nosec: B101 # pytest assertion
-        
+
         result = self.guard.check_slippage("EURUSD", 1.1230, 1.1236)
         assert result is True  # nosec: B101 # pytest assertion
