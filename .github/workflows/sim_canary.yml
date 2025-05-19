@@ -15,6 +15,18 @@ jobs:
       fail-fast: false
     
     steps:
+      - name: Debug secrets (one-off)
+        run: |
+          echo "::warning::SIM_CLIENT_ID length=${#SIM_CLIENT_ID}"
+          echo "::warning::SIM_CLIENT_SECRET length=${#SIM_CLIENT_SECRET}"
+          echo "::warning::SIM_REFRESH_TOKEN length=${#SIM_REFRESH_TOKEN}"
+          echo "::warning::SIM_ACCOUNT_KEY length=${#SIM_ACCOUNT_KEY}"
+        env:
+          SIM_CLIENT_ID: ${{ secrets.SIM_CLIENT_ID }}
+          SIM_CLIENT_SECRET: ${{ secrets.SIM_CLIENT_SECRET }}
+          SIM_REFRESH_TOKEN: ${{ secrets.SIM_REFRESH_TOKEN }}
+          SIM_ACCOUNT_KEY: ${{ secrets.SIM_ACCOUNT_KEY }}
+
       - name: Checkout code
         uses: actions/checkout@v4
 
