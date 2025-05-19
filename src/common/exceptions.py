@@ -30,3 +30,26 @@ class SaxoApiError(Exception):
         if status_code:
             error_msg += f" (Status Code: {status_code})"
         super().__init__(error_msg)
+
+
+class OrderRejected(SaxoApiError):
+    """Exception raised when an order is rejected."""
+
+    def __init__(
+        self, 
+        message: str, 
+        reason: str, 
+        status_code: int | None = None, 
+        response_body: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Initialize the exception.
+
+        Args:
+            message: The error message
+            reason: The reason for rejection
+            status_code: HTTP status code
+            response_body: Full response body from the API
+        """
+        self.reason = reason
+        super().__init__(f"{message}: {reason}", status_code, response_body)

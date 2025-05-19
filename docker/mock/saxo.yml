@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  mock_saxo:
+    image: stoplight/prism:4
+    command: mock -h 0.0.0.0 /tmp/saxo-openapi.yaml
+    volumes:
+      - ./saxo-openapi.yaml:/tmp/saxo-openapi.yaml:ro
+    ports:
+      - "18080:4010"
+    networks:
+      - bot_net
+    restart: unless-stopped
+
+networks:
+  bot_net:
+    external: true

@@ -76,65 +76,81 @@ def run_canary_test(
         pre_mid = (pre_ask + pre_bid) / 2
 
         logger.info(f"Placing {side} order {i+1}/{num_trades} for {lot_size} lots of {instrument}")
-        order_result = client.place_order(
-            instrument=instrument,
-            order_type="Market",
-            side=side,
-            amount=Decimal(str(lot_size)),
-        )
+        try:
+            order_result = client.place_order(
+                instrument=instrument,
+                order_type="Market",
+                side=side,
+                amount=Decimal(str(lot_size)),
+            )
 
-        latency_ms = (time.time() - start_time) * 1000
-        latencies.append(latency_ms)
+            latency_ms = (time.time() - start_time) * 1000
+            latencies.append(latency_ms)
 
-        if not order_result:
-            logger.error(f"Failed to place order {i+1}/{num_trades}")
-            time.sleep(interval)
-            continue
+            orders_placed += 1
 
-        orders_placed += 1
+            if "OrderId" in order_result:
+                orders_filled += 1
+                order_id = order_result["OrderId"]
 
-        if "OrderId" in order_result:
-            orders_filled += 1
-            order_id = order_result["OrderId"]
+                post_quote_data = client.get_quote(instrument)
+                if post_quote_data and "Quote" in post_quote_data:
+                    post_quote = post_quote_data["Quote"]
+                    post_ask = float(post_quote.get("Ask", 0))
+                    post_bid = float(post_quote.get("Bid", 0))
+                    post_mid = (post_ask + post_bid) / 2
 
-            post_quote_data = client.get_quote(instrument)
-            if post_quote_data and "Quote" in post_quote_data:
-                post_quote = post_quote_data["Quote"]
-                post_ask = float(post_quote.get("Ask", 0))
-                post_bid = float(post_quote.get("Bid", 0))
-                post_mid = (post_ask + post_bid) / 2
+                    orders_data.append(
+                        {
+                            "order_id": order_id,
+                            "side": side,
+                            "pre_mid": pre_mid,
+                            "post_mid": post_mid,
+                            "filled": True,
+                            "latency_ms": latency_ms,
+                        }
+                    )
 
+                    logger.info(
+                        f"Order {i+1}/{num_trades} filled: ID {order_id}, latency: {latency_ms:.2f} ms"
+                    )
+                else:
+                    logger.warning(f"Order {i+1}/{num_trades} filled but no post-trade quote")
+            else:
+                logger.warning(f"Order {i+1}/{num_trades} status unclear: {order_result}")
+                
+        except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
+            latencies.append(latency_ms)
+            
+            orders_placed += 1
+            
+            from src.common.exceptions import OrderRejected
+            if isinstance(e, OrderRejected):
+                reason = e.reason
+                logger.warning(f"Order {i+1}/{num_trades} rejected: {reason}")
+                
                 orders_data.append(
                     {
-                        "order_id": order_id,
                         "side": side,
                         "pre_mid": pre_mid,
-                        "post_mid": post_mid,
-                        "filled": True,
+                        "filled": False,
+                        "reason": reason,
                         "latency_ms": latency_ms,
                     }
                 )
-
-                logger.info(
-                    f"Order {i+1}/{num_trades} filled: ID {order_id}, latency: {latency_ms:.2f} ms"
-                )
             else:
-                logger.warning(f"Order {i+1}/{num_trades} filled but no post-trade quote")
-        elif "OrderRejected" in order_result:
-            reason = order_result.get("Reason", "Unknown reason")
-            logger.warning(f"Order {i+1}/{num_trades} rejected: {reason}")
-
-            orders_data.append(
-                {
-                    "side": side,
-                    "pre_mid": pre_mid,
-                    "filled": False,
-                    "reason": reason,
-                    "latency_ms": latency_ms,
-                }
-            )
-        else:
-            logger.warning(f"Order {i+1}/{num_trades} status unclear: {order_result}")
+                logger.error(f"Failed to place order {i+1}/{num_trades}: {str(e)}")
+                
+                orders_data.append(
+                    {
+                        "side": side,
+                        "pre_mid": pre_mid,
+                        "filled": False,
+                        "reason": str(e),
+                        "latency_ms": latency_ms,
+                    }
+                )
 
         time.sleep(interval)
 

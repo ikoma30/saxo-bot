@@ -1,0 +1,325 @@
+openapi: 3.0.0
+info:
+  title: Saxo Bank OpenAPI Mock
+  version: 1.0.0
+  description: Mock server for Saxo Bank OpenAPI
+
+servers:
+  - url: http://localhost:18080
+    description: Mock server
+
+paths:
+  /token:
+    post:
+      summary: Get access token
+      operationId: getToken
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                grant_type:
+                  type: string
+                refresh_token:
+                  type: string
+                client_id:
+                  type: string
+                client_secret:
+                  type: string
+      responses:
+        '200':
+          description: Token response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                  expires_in:
+                    type: integer
+                  refresh_token:
+                    type: string
+              example:
+                access_token: "mock-access-token"
+                token_type: "Bearer"
+                expires_in: 1200
+                refresh_token: "mock-refresh-token"
+
+  /ref/v1/instruments/details:
+    get:
+      summary: Get instrument details
+      operationId: getInstrumentDetails
+      parameters:
+        - name: AssetTypes
+          in: query
+          schema:
+            type: string
+        - name: Keywords
+          in: query
+          schema:
+            type: string
+        - name: IncludeNonTradable
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Instrument details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Symbol:
+                          type: string
+                        Identifier:
+                          type: integer
+              example:
+                Data:
+                  - Symbol: "USDJPY"
+                    Identifier: 21
+                    AssetType: "FxSpot"
+                  - Symbol: "EURJPY"
+                    Identifier: 22
+                    AssetType: "FxSpot"
+
+  /ref/v1/instruments/details/{uic}:
+    get:
+      summary: Get instrument details by UIC
+      operationId: getInstrumentDetailsByUic
+      parameters:
+        - name: uic
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Instrument details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Symbol:
+                    type: string
+                  Identifier:
+                    type: integer
+              example:
+                Symbol: "USDJPY"
+                Identifier: 21
+                AssetType: "FxSpot"
+
+  /trade/v1/prices/quotes:
+    get:
+      summary: Get quotes
+      operationId: getQuotes
+      parameters:
+        - name: AssetType
+          in: query
+          schema:
+            type: string
+        - name: Uic
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Quote response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  Quote:
+                    type: object
+                    properties:
+                      Ask:
+                        type: string
+                      Bid:
+                        type: string
+              example:
+                Quote:
+                  Ask: "151.25"
+                  Bid: "151.23"
+                  Mid: "151.24"
+                  AssetType: "FxSpot"
+
+  /trade/v2/orders/precheck:
+    post:
+      summary: Precheck order
+      operationId: precheckOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                AccountKey:
+                  type: string
+                AssetType:
+                  type: string
+                Amount:
+                  type: string
+                BuySell:
+                  type: string
+                OrderType:
+                  type: string
+                Uic:
+                  type: integer
+      responses:
+        '200':
+          description: Precheck response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  PreCheckResult:
+                    type: string
+                  BlockingDisclaimers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        Id:
+                          type: string
+              example:
+                PreCheckResult: "Accepted"
+                BlockingDisclaimers: []
+
+  /trade/v2/orders:
+    post:
+      summary: Place order
+      operationId: placeOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                AccountKey:
+                  type: string
+                AssetType:
+                  type: string
+                Amount:
+                  type: string
+                BuySell:
+                  type: string
+                OrderType:
+                  type: string
+                Uic:
+                  type: integer
+      responses:
+        '201':
+          description: Order response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  OrderId:
+                    type: string
+              example:
+                OrderId: "mock-order-123"
+
+  /trade/v1/disclaimers/{id}/accept:
+    put:
+      summary: Accept disclaimer
+      operationId: acceptDisclaimer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Disclaimer accepted
+
+  /ens/v1/activities/subscriptions:
+    post:
+      summary: Subscribe to activities
+      operationId: subscribeActivities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ContextId:
+                  type: string
+                ReferenceId:
+                  type: string
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ContextId:
+                    type: string
+                  ReferenceId:
+                    type: string
+              example:
+                ContextId: "mock-context-123"
+                ReferenceId: "activities-subscription"
+
+  /port/v1/trades/subscriptions:
+    post:
+      summary: Subscribe to trades
+      operationId: subscribeTrades
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ContextId:
+                  type: string
+                ReferenceId:
+                  type: string
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ContextId:
+                    type: string
+                  ReferenceId:
+                    type: string
+              example:
+                ContextId: "mock-context-123"
+                ReferenceId: "trades-subscription"
+
+  /streaming/connection:
+    get:
+      summary: WebSocket connection
+      operationId: wsConnection
+      parameters:
+        - name: contextId
+          in: query
+          schema:
+            type: string
+      responses:
+        '101':
+          description: WebSocket connection established

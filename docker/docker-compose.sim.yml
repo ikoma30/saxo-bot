@@ -3,9 +3,9 @@ services:
   parent_core:
     image: ghcr.io/ikoma30/saxo-bot-parent:${TAG}
     env_file: .env.sim
-    cpus: "0-1"
     deploy:
       resources:
+        cpuset: "0-1"
         limits:
           memory: "1500M"
     networks: [bot_net]
@@ -14,9 +14,9 @@ services:
   main_bot_core:
     image: ghcr.io/ikoma30/saxo-bot-main:${TAG}
     env_file: .env.sim
-    cpus: "2"
     deploy:
       resources:
+        cpuset: "2"
         limits:
           memory: "1500M"
     networks: [bot_net]
@@ -26,13 +26,47 @@ services:
   micro_rev_core:
     image: ghcr.io/ikoma30/saxo-bot-microrev:${TAG}
     env_file: .env.sim
-    cpus: "3"
     deploy:
       resources:
+        cpuset: "3"
         limits:
           memory: "1500M"
     networks: [bot_net]
     depends_on: [parent_core]
+    restart: unless-stopped
+
+  subscriber:
+    image: ghcr.io/ikoma30/saxo-bot-subscriber:${TAG}
+    env_file: .env.sim
+    deploy:
+      resources:
+        cpuset: "1"
+        limits:
+          memory: "1000M"
+    networks: [bot_net, mon_net]
+    ports: ["8081:8081"]
+    depends_on: [parent_core]
+    restart: unless-stopped
+
+  orchestrator:
+    image: ghcr.io/ikoma30/saxo-bot-orchestrator:${TAG}
+    env_file: .env.sim
+    deploy:
+      resources:
+        cpuset: "0"
+        limits:
+          memory: "1000M"
+    networks: [bot_net, mon_net]
+    ports: ["8080:8080"]
+    depends_on: [parent_core]
+    restart: unless-stopped
+
+  exporter:
+    image: prom/node-exporter:v1.5.0
+    deploy:
+      resources:
+        cpuset: "1"
+    networks: [mon_net]
     restart: unless-stopped
 
   prometheus:
@@ -44,6 +78,14 @@ services:
   grafana:
     image: grafana/grafana:10.4.2
     networks: [mon_net]
+    restart: unless-stopped
+
+  mock_saxo:
+    image: stoplight/prism:4
+    command: mock -h 0.0.0.0 /tmp/saxo-openapi.yaml
+    volumes:
+      - ./mock/saxo-openapi.yaml:/tmp/saxo-openapi.yaml:ro
+    networks: [bot_net]
     restart: unless-stopped
 
 networks:

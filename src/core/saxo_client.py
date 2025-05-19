@@ -13,7 +13,7 @@ from typing import Any
 
 import requests
 
-from src.common.exceptions import SaxoApiError
+from src.common.exceptions import SaxoApiError, OrderRejected
 from src.common.retry_utils import retryable
 from src.core.guards import (
     KillSwitch,
@@ -60,6 +60,10 @@ class SaxoClient:
         self.priority_guard = PriorityGuard()
 
         self.current_mode = TradingMode.LV_LL
+        
+        # Initialize UIC map
+        from src.utils.uic_map import UICMap
+        self.uic_map = UICMap(self)
 
     @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
     def authenticate(self) -> bool:
@@ -169,7 +173,7 @@ class SaxoClient:
         side: str,
         amount: int | float | Decimal,
         price: float | Decimal | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any]:
         """
         Place an order for the specified instrument.
 
@@ -177,45 +181,73 @@ class SaxoClient:
             instrument: The instrument identifier (e.g., "EURUSD")
             order_type: The type of order (e.g., "Market", "Limit")
             side: The side of the order ("Buy" or "Sell")
-            amount: The amount to trade
+            amount: The amount to trade in lots
             price: The price for limit orders (optional)
 
         Returns:
-            Optional[dict[str, Any]]: Order information or None if the request failed
+            dict[str, Any]: Order information
+
+        Raises:
+            OrderRejected: If the order is rejected
+            SaxoApiError: If the API returns an error
         """
         if not self.access_token or not self.account_key:
             logger.error("Not authenticated or missing account key")
-            return None
+            raise SaxoApiError("Not authenticated or missing account key")
 
         headers = self._get_headers()
 
         trade_version = "v3" if self.use_trade_v3 else "v2"
         endpoint = f"/trade/{trade_version}/orders"
 
-        precheck_result = self._precheck_order(instrument, order_type, side, amount, price)
+        uic = self.uic_map.get_uic(instrument)
+        if not uic:
+            logger.error(f"Failed to get UIC for instrument {instrument}")
+            raise SaxoApiError(f"Failed to get UIC for instrument {instrument}")
 
+        from src.utils.units_converter import lot_to_units
+        units = lot_to_units(amount, "FxSpot", instrument)
+
+        precheck_result = self._precheck_order(instrument, order_type, side, amount, price)
         if not precheck_result:
             logger.error("Order precheck failed")
-            return None
+            raise OrderRejected("Order precheck failed", "Precheck returned no result")
 
         if precheck_result.get("SlippageGuardRejection"):
             logger.error("Order rejected by SlippageGuard due to excessive spread")
-            return {"OrderRejected": True, "Reason": "SlippageGuard: Excessive spread"}
+            raise OrderRejected(
+                "Order rejected", 
+                "SlippageGuard: Excessive spread", 
+                None, 
+                precheck_result
+            )
 
         if precheck_result.get("KillSwitchRejection"):
             logger.error("Order rejected by KillSwitch due to daily loss limit")
-            return {"OrderRejected": True, "Reason": "KillSwitch: Daily loss limit exceeded"}
+            raise OrderRejected(
+                "Order rejected", 
+                "KillSwitch: Daily loss limit exceeded", 
+                None, 
+                precheck_result
+            )
 
         if precheck_result.get("ModeGuardRejection"):
             logger.error("Order rejected by ModeGuard due to excessive mode transitions")
-            return {
-                "OrderRejected": True,
-                "Reason": "ModeGuard: Trading paused due to excessive mode transitions",
-            }
+            raise OrderRejected(
+                "Order rejected", 
+                "ModeGuard: Trading paused due to excessive mode transitions", 
+                None, 
+                precheck_result
+            )
 
         if precheck_result.get("LatencyGuardRejection"):
             logger.error("Order rejected by LatencyGuard due to high API latency")
-            return {"OrderRejected": True, "Reason": "LatencyGuard: High API latency detected"}
+            raise OrderRejected(
+                "Order rejected", 
+                "LatencyGuard: High API latency detected", 
+                None, 
+                precheck_result
+            )
 
         if precheck_result.get("BlockingDisclaimers"):
             for disclaimer in precheck_result.get("BlockingDisclaimers", []):
@@ -225,28 +257,37 @@ class SaxoClient:
 
                 if not self._accept_disclaimer(disclaimer_id):
                     logger.error(f"Failed to accept disclaimer {disclaimer_id}")
-                    return None
+                    raise OrderRejected(
+                        "Order rejected", 
+                        f"Failed to accept disclaimer {disclaimer_id}", 
+                        None, 
+                        precheck_result
+                    )
 
             precheck_result = self._precheck_order(instrument, order_type, side, amount, price)
-
             if not precheck_result:
                 logger.error("Order precheck failed after accepting disclaimers")
-                return None
+                raise OrderRejected(
+                    "Order rejected", 
+                    "Precheck failed after accepting disclaimers", 
+                    None, 
+                    precheck_result
+                )
 
         order_data = {
             "AccountKey": self.account_key,
             "AssetType": "FxSpot",
-            "Amount": str(amount),
+            "Amount": str(units),  # Use converted units
             "BuySell": side,
             "OrderType": order_type,
-            "Uic": instrument,
+            "Uic": uic,  # Use numeric UIC
         }
 
         if price and order_type.lower() != "market":
             order_data["Price"] = str(price)
 
         try:
-            logger.info(f"Placing {side} {order_type} order for {amount} {instrument}")
+            logger.info(f"Placing {side} {order_type} order for {amount} lots of {instrument}")
             response = requests.post(
                 f"{self.base_url}{endpoint}",
                 headers=headers,
@@ -268,7 +309,7 @@ class SaxoClient:
                 raise SaxoApiError("Failed to place order", None, None) from e
         except requests.RequestException as e:
             logger.error(f"Order request failed: {str(e)}")
-            return None
+            raise SaxoApiError(f"Order request failed: {str(e)}")
 
     @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
     def _precheck_order(
@@ -278,7 +319,7 @@ class SaxoClient:
         side: str,
         amount: int | float | Decimal,
         price: float | Decimal | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any]:
         """
         Precheck an order before placing it.
 
@@ -290,18 +331,21 @@ class SaxoClient:
         5. Perform API precheck
 
         Args:
-            instrument: The instrument identifier (e.g., "EURUSD")
+            instrument: The instrument identifier (e.g., "USDJPY")
             order_type: The type of order (e.g., "Market", "Limit")
             side: The side of the order ("Buy" or "Sell")
-            amount: The amount to trade
+            amount: The amount to trade in lots
             price: The price for limit orders (optional)
 
         Returns:
-            Optional[dict[str, Any]]: Precheck result or None if the request failed
+            dict[str, Any]: Precheck result
+
+        Raises:
+            SaxoApiError: If the API returns an error
         """
         if not self.access_token or not self.account_key:
             logger.error("Not authenticated or missing account key")
-            return None
+            raise SaxoApiError("Not authenticated or missing account key")
 
         current_equity = 800000.0  # 800,000 JPY
 
@@ -324,7 +368,7 @@ class SaxoClient:
         quote_data = self.get_quote(instrument)
         if not quote_data or "Quote" not in quote_data:
             logger.error(f"Failed to get quote for {instrument}, cannot check spread")
-            return None
+            raise SaxoApiError(f"Failed to get quote for {instrument}")
 
         quote = quote_data["Quote"]
         ask = float(quote.get("Ask", 0))
@@ -338,6 +382,14 @@ class SaxoClient:
             logger.error(f"SlippageGuard rejected {side} order for {instrument} - excessive spread")
             return {"SlippageGuardRejection": True, "PreCheckResult": "Rejected"}
 
+        uic = self.uic_map.get_uic(instrument)
+        if not uic:
+            logger.error(f"Failed to get UIC for instrument {instrument}")
+            raise SaxoApiError(f"Failed to get UIC for instrument {instrument}")
+
+        from src.utils.units_converter import lot_to_units
+        units = lot_to_units(amount, "FxSpot", instrument)
+
         headers = self._get_headers()
 
         trade_version = "v3" if self.use_trade_v3 else "v2"
@@ -346,17 +398,17 @@ class SaxoClient:
         order_data = {
             "AccountKey": self.account_key,
             "AssetType": "FxSpot",
-            "Amount": str(amount),
+            "Amount": str(units),  # Use converted units
             "BuySell": side,
             "OrderType": order_type,
-            "Uic": instrument,
+            "Uic": uic,  # Use numeric UIC
         }
 
         if price and order_type.lower() != "market":
             order_data["Price"] = str(price)
 
         try:
-            logger.info(f"Prechecking {side} {order_type} order for {amount} {instrument}")
+            logger.info(f"Prechecking {side} {order_type} order for {amount} lots of {instrument}")
             response = requests.post(
                 f"{self.base_url}{endpoint}",
                 headers=headers,
@@ -374,7 +426,7 @@ class SaxoClient:
             logger.info("Order precheck completed")
             return precheck_result
         except requests.HTTPError as e:
-            if hasattr(e, "response") and e.response is not None:
+            if hasattr(e, "response") and e.response is not None: 
                 logger.error(f"Order precheck failed with status {e.response.status_code}")
                 raise SaxoApiError(
                     "Order precheck failed", e.response.status_code, e.response.json()
@@ -384,7 +436,7 @@ class SaxoClient:
                 raise SaxoApiError("Order precheck failed", None, None) from e
         except requests.RequestException as e:
             logger.error(f"Order precheck request failed: {str(e)}")
-            return None
+            raise SaxoApiError(f"Order precheck request failed: {str(e)}")
 
     @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
     def _accept_disclaimer(self, disclaimer_id: str) -> bool:
