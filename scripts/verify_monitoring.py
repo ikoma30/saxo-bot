@@ -123,6 +123,155 @@ def check_slack_webhook() -> bool:
         return False
 
 
+def check_opsgenie_key() -> bool:
+    """
+    Verify OpsGenie API key is configured for fallback alerts.
+
+    Returns:
+        bool: True if OpsGenie key is configured, False otherwise
+    """
+    opsgenie_key = os.environ.get("OG_GENIE_KEY")
+    if not opsgenie_key:
+        logger.warning("OG_GENIE_KEY environment variable not set (fallback alerts disabled)")
+        return False
+
+    if len(opsgenie_key) >= 20:  # Simple validation for API key length
+        logger.info("OpsGenie API key is properly configured for fallback alerts")
+        return True
+    else:
+        logger.error("OpsGenie API key does not appear to be valid")
+        return False
+
+
+def send_alert(message: str, severity: str = "warning") -> bool:
+    """
+    Send an alert through available channels with fallback mechanism.
+
+    Tries Slack first, then OpsGenie as fallback, then sendmail as final fallback.
+
+    Args:
+        message: Alert message to send
+        severity: Alert severity (info, warning, error, critical)
+
+    Returns:
+        bool: True if alert was sent through any channel, False if all channels failed
+    """
+    import json
+    import subprocess
+    from datetime import datetime
+
+    slack_webhook = os.environ.get("SLACK_WEBHOOK")
+    if slack_webhook and slack_webhook.startswith("https://hooks.slack.com/services/"):
+        try:
+            color = {
+                "info": "#36a64f",
+                "warning": "#ffcc00",
+                "error": "#ff9900",
+                "critical": "#E01E5A",
+            }.get(severity, "#36a64f")
+
+            payload = {
+                "attachments": [
+                    {
+                        "color": color,
+                        "title": "Saxo Bot Alert",
+                        "fields": [
+                            {
+                                "title": "env",
+                                "value": os.environ.get("ENV", "unknown"),
+                                "short": True,
+                            },
+                            {
+                                "title": "bot",
+                                "value": os.environ.get("BOT_ID", "parent"),
+                                "short": True,
+                            },
+                            {"title": "event", "value": "MONITORING", "short": True},
+                            {"title": "details", "value": message},
+                        ],
+                        "footer": "saxo-bot-orchestrator",
+                        "ts": int(datetime.now().timestamp()),
+                    }
+                ]
+            }
+
+            import requests
+
+            response = requests.post(
+                slack_webhook,
+                headers={"Content-Type": "application/json"},
+                data=json.dumps(payload),
+                timeout=5,
+            )
+
+            if response.status_code == 200:
+                logger.info(f"Alert sent to Slack: {message}")
+                return True
+            else:
+                logger.warning(f"Failed to send alert to Slack: HTTP {response.status_code}")
+        except Exception as e:
+            logger.warning(f"Error sending alert to Slack: {str(e)}")
+
+    opsgenie_key = os.environ.get("OG_GENIE_KEY")
+    if opsgenie_key and len(opsgenie_key) >= 20:
+        try:
+            opsgenie_payload: dict[str, object] = {
+                "message": f"Saxo Bot Alert: {message}",
+                "description": message,
+                "priority": severity,
+                "tags": [
+                    os.environ.get("ENV", "unknown"),
+                    os.environ.get("BOT_ID", "parent"),
+                    "monitoring",
+                ],
+            }
+
+            import requests
+
+            response = requests.post(
+                "https://api.opsgenie.com/v2/alerts",
+                headers={
+                    "Authorization": f"GenieKey {opsgenie_key}",
+                    "Content-Type": "application/json",
+                },
+                data=json.dumps(opsgenie_payload),
+                timeout=5,
+            )
+
+            if response.status_code in (200, 201, 202):
+                logger.info(f"Alert sent to OpsGenie: {message}")
+                return True
+            else:
+                logger.warning(f"Failed to send alert to OpsGenie: HTTP {response.status_code}")
+        except Exception as e:
+            logger.warning(f"Error sending alert to OpsGenie: {str(e)}")
+
+    try:
+        ops_email = "ops@example.com"  # This should be configured in environment or config
+        subject = f"ALERT: Saxo Bot {severity.upper()}"
+        email_body = f"Saxo Bot Alert\n\nEnvironment: {os.environ.get('ENV', 'unknown')}\nBot: {os.environ.get('BOT_ID', 'parent')}\nSeverity: {severity}\n\n{message}"
+
+        email_content = f"Subject: {subject}\nTo: {ops_email}\n\n{email_body}"
+
+        process = subprocess.Popen(
+            ["sendmail", "-t"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = process.communicate(input=email_content.encode())
+
+        if process.returncode == 0:
+            logger.info(f"Alert sent via email to {ops_email}")
+            return True
+        else:
+            logger.error(f"Failed to send email alert: {stderr.decode()}")
+            return False
+    except Exception as e:
+        logger.error(f"Error sending email alert: {str(e)}")
+        return False
+
+
 def verify_all_monitoring() -> bool:
     """
     Verify all monitoring systems.
@@ -143,19 +292,27 @@ def verify_all_monitoring() -> bool:
         dashboards_count = check_grafana_dashboards()
 
     slack_configured = check_slack_webhook()
+    opsgenie_configured = check_opsgenie_key()
+
+    # Check if at least one alert channel is configured
+    alert_channels_available = slack_configured or opsgenie_configured
+    if not alert_channels_available:
+        logger.error("No alert channels configured (Slack or OpsGenie)")
+        send_alert("No alert channels configured (Slack or OpsGenie)", "critical")
 
     all_healthy = (
         prometheus_healthy
         and targets_status["down"] == 0
         and grafana_healthy
         and dashboards_count > 0
-        and slack_configured
+        and alert_channels_available
     )
 
     if all_healthy:
         logger.info("All monitoring systems are operational")
     else:
         logger.error("One or more monitoring systems are not operational")
+        send_alert("One or more monitoring systems are not operational", "error")
 
     return all_healthy
 
