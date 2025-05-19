@@ -15,7 +15,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 
 sys.path.append(str(Path(__file__).parent.parent))
 from tests.fixtures.prom_mock_endpoint import get_mock_metric  # noqa: E402
