@@ -44,13 +44,14 @@ def generate_canary_report(
 
     os.makedirs(REPORTS_DIR, exist_ok=True)
 
-    fill_rate, performance_factor = run_canary_test(
+    fill_rate, performance_factor, orders_data = run_canary_test(
         instrument=instrument,
         num_trades=num_trades,
         lot_size=lot_size,
     )
 
-    orders_data = []
+    if not orders_data:
+        orders_data = []
 
     filled_orders = [order for order in orders_data if order.get("filled", False)]
     rejected_orders = [order for order in orders_data if not order.get("filled", False)]

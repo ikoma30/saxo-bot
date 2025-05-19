@@ -12,6 +12,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import requests
 
@@ -31,7 +32,7 @@ METRICS = [
 ]
 
 
-def query_prometheus_metric(metric_name: str) -> dict:
+def query_prometheus_metric(metric_name: str) -> dict[str, Any]:
     """
     Query Prometheus for a specific metric.
 
@@ -52,7 +53,7 @@ def query_prometheus_metric(metric_name: str) -> dict:
             logger.error(f"Failed to query metric {metric_name}: HTTP {response.status_code}")
             return {"status": "error", "error": f"HTTP {response.status_code}"}
 
-        data = response.json()
+        data: dict[str, Any] = response.json()
         logger.info(f"Successfully queried metric: {metric_name}")
         return data
     except requests.RequestException as e:

@@ -13,7 +13,7 @@ import os
 import sys
 from pathlib import Path
 
-from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright  # type: ignore
 
 logging.basicConfig(
     level=logging.INFO,
