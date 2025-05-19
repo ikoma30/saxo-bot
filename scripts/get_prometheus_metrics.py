@@ -44,14 +44,14 @@ def query_prometheus_metric(metric_name: str) -> dict:
     try:
         url = f"http://localhost:{PROMETHEUS_PORT}/api/v1/query"
         params = {"query": metric_name}
-        
+
         logger.info(f"Querying Prometheus for metric: {metric_name}")
         response = requests.get(url, params=params, timeout=5)
-        
+
         if response.status_code != 200:
             logger.error(f"Failed to query metric {metric_name}: HTTP {response.status_code}")
             return {"status": "error", "error": f"HTTP {response.status_code}"}
-        
+
         data = response.json()
         logger.info(f"Successfully queried metric: {metric_name}")
         return data
@@ -68,21 +68,21 @@ def get_prometheus_metrics() -> str:
         str: Path to the saved metrics file
     """
     os.makedirs(REPORTS_DIR, exist_ok=True)
-    
+
     metrics_data = {}
     for metric in METRICS:
         metrics_data[metric] = query_prometheus_metric(metric)
-    
+
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     report_data = {
         "timestamp": timestamp,
         "metrics": metrics_data,
     }
-    
+
     report_file = REPORTS_DIR / f"prometheus_metrics_{timestamp}.json"
     with open(report_file, "w") as f:
         json.dump(report_data, f, indent=2)
-    
+
     logger.info(f"Prometheus metrics saved to {report_file}")
     return str(report_file)
 
@@ -90,7 +90,7 @@ def get_prometheus_metrics() -> str:
 def main() -> int:
     """
     Query Prometheus for metrics and save to a file.
-    
+
     Returns:
         int: Exit code (0 for success, 1 for failure)
     """

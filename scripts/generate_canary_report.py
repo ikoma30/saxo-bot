@@ -26,10 +26,7 @@ REPORTS_DIR = Path(__file__).parent.parent / "reports"
 
 
 def generate_canary_report(
-    bot_name: str,
-    instrument: str,
-    num_trades: int = 10,
-    lot_size: float = 0.01
+    bot_name: str, instrument: str, num_trades: int = 10, lot_size: float = 0.01
 ) -> str:
     """
     Generate a canary test report for the specified bot.
@@ -44,32 +41,30 @@ def generate_canary_report(
         str: Path to the generated report file
     """
     logger.info(f"Generating canary report for {bot_name} BOT using {instrument}")
-    
+
     os.makedirs(REPORTS_DIR, exist_ok=True)
-    
+
     fill_rate, performance_factor = run_canary_test(
         instrument=instrument,
         num_trades=num_trades,
         lot_size=lot_size,
     )
-    
+
     orders_data = []
-    
+
     filled_orders = [order for order in orders_data if order.get("filled", False)]
     rejected_orders = [order for order in orders_data if not order.get("filled", False)]
-    
-    latencies = [
-        order.get("latency_ms", 0) 
-        for order in orders_data 
-        if "latency_ms" in order
-    ]
+
+    latencies = [order.get("latency_ms", 0) for order in orders_data if "latency_ms" in order]
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
     p95_latency = (
-        sorted(latencies)[int(len(latencies) * 0.95) - 1] 
-        if len(latencies) >= 20 
-        else max(latencies) if latencies else 0
+        sorted(latencies)[int(len(latencies) * 0.95) - 1]
+        if len(latencies) >= 20
+        else max(latencies)
+        if latencies
+        else 0
     )
-    
+
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     report_data = {
         "bot_name": bot_name,
@@ -86,11 +81,11 @@ def generate_canary_report(
         },
         "orders": orders_data,
     }
-    
+
     report_file = REPORTS_DIR / f"canary_{bot_name.lower()}_{timestamp}.json"
     with open(report_file, "w") as f:
         json.dump(report_data, f, indent=2)
-    
+
     logger.info(f"Canary report saved to {report_file}")
     return str(report_file)
 
@@ -98,7 +93,7 @@ def generate_canary_report(
 def main() -> int:
     """
     Generate canary reports for both Main BOT and Micro-Rev BOT.
-    
+
     Returns:
         int: Exit code (0 for success, 1 for failure)
     """
@@ -109,18 +104,18 @@ def main() -> int:
             num_trades=10,
             lot_size=0.01,
         )
-        
+
         micro_rev_report = generate_canary_report(
             bot_name="Micro-Rev",
             instrument="EURJPY",
             num_trades=10,
             lot_size=0.01,
         )
-        
+
         logger.info("Successfully generated canary reports:")
         logger.info(f"- Main BOT: {main_report}")
         logger.info(f"- Micro-Rev BOT: {micro_rev_report}")
-        
+
         return 0
     except Exception as e:
         logger.error(f"Failed to generate canary reports: {str(e)}")

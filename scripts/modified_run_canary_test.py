@@ -81,7 +81,7 @@ def run_canary_test(
         pre_mid = (pre_ask + pre_bid) / 2
 
         logger.info(f"Placing {side} order {i+1}/{num_trades} for {lot_size} lots of {instrument}")
-        
+
         start_time = time.time()
         order_result = client.place_order(
             instrument=instrument,
@@ -180,7 +180,7 @@ def run_canary_test(
 
     if save_report:
         os.makedirs(REPORTS_DIR, exist_ok=True)
-        
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_data = {
             "bot_name": bot_name,
@@ -196,11 +196,11 @@ def run_canary_test(
             },
             "orders": orders_data,
         }
-        
+
         report_file = REPORTS_DIR / f"canary_{bot_name.lower()}_{timestamp}.json"
         with open(report_file, "w") as f:
             json.dump(report_data, f, indent=2)
-        
+
         logger.info(f"Canary report saved to {report_file}")
 
     return fill_rate, performance_factor, orders_data
@@ -230,9 +230,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 4:
         bot_name = sys.argv[4]
 
-    fill_rate, pf, _ = run_canary_test(
-        instrument, num_trades, lot_size, interval, True, bot_name
-    )
+    fill_rate, pf, _ = run_canary_test(instrument, num_trades, lot_size, interval, True, bot_name)
 
     if fill_rate >= 92 and pf >= 0.9:
         sys.exit(0)

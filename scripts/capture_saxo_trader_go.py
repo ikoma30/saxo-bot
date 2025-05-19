@@ -34,51 +34,51 @@ async def capture_screenshot() -> str:
         str: Path to the saved screenshot file
     """
     os.makedirs(REPORTS_DIR, exist_ok=True)
-    
+
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     screenshot_file = REPORTS_DIR / f"saxo_trader_go_{timestamp}.png"
-    
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
         context = await browser.new_context()
         page = await context.new_page()
-        
+
         logger.info("Navigating to SaxoTraderGO")
         await page.goto("https://www.saxotrader.com/sim/login/")
-        
+
         await page.wait_for_selector("input[type='text']")
-        
+
         username = os.environ.get("SIM_USERNAME")
         password = os.environ.get("SIM_PASSWORD")
-        
+
         if not username or not password:
             logger.error("SIM_USERNAME or SIM_PASSWORD environment variables not set")
             await browser.close()
             return ""
-        
+
         logger.info("Logging in to SaxoTraderGO")
         await page.fill("input[type='text']", username)
         await page.fill("input[type='password']", password)
         await page.click("button[type='submit']")
-        
+
         await page.wait_for_selector(".dashboard")
-        
+
         logger.info(f"Navigating to account {ACCOUNT_ID}")
         await page.click("a[href*='accounts']")
-        
+
         await page.wait_for_selector(f"div[data-account-id='{ACCOUNT_ID}']")
         await page.click(f"div[data-account-id='{ACCOUNT_ID}']")
-        
+
         logger.info("Navigating to trade history")
         await page.click("a[href*='history']")
-        
+
         await page.wait_for_selector(".trade-history")
-        
+
         logger.info(f"Capturing screenshot to {screenshot_file}")
         await page.screenshot(path=str(screenshot_file))
-        
+
         await browser.close()
-    
+
     logger.info(f"Screenshot saved to {screenshot_file}")
     return str(screenshot_file)
 
@@ -86,7 +86,7 @@ async def capture_screenshot() -> str:
 def main() -> int:
     """
     Capture a screenshot from SaxoTraderGO.
-    
+
     Returns:
         int: Exit code (0 for success, 1 for failure)
     """
@@ -95,7 +95,7 @@ def main() -> int:
         if not screenshot_file:
             logger.error("Failed to capture screenshot")
             return 1
-        
+
         logger.info(f"Successfully captured screenshot: {screenshot_file}")
         return 0
     except Exception as e:
