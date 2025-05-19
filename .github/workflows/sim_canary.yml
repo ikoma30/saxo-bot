@@ -31,7 +31,7 @@ jobs:
           
       - name: Install project (editable)
         run: |
-          pip install -e .
+          pip install -e ./src
       
       - name: Create .env.sim file with credentials
         run: |
