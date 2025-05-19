@@ -115,7 +115,9 @@ def run_canary_test(
                     }
                 )
 
-                logger.info(f"Order {i+1}/{num_trades} filled: ID {order_id}, latency: {latency_ms:.2f} ms")
+                logger.info(
+                    f"Order {i+1}/{num_trades} filled: ID {order_id}, latency: {latency_ms:.2f} ms"
+                )
             else:
                 logger.warning(f"Order {i+1}/{num_trades} filled but no post-trade quote")
         elif "OrderRejected" in order_result:
@@ -204,42 +206,46 @@ if __name__ == "__main__":
             sys.exit(1)
 
     fill_rate, pf, orders_data = run_canary_test(instrument, num_trades, lot_size, interval)
-    
+
     import json
     import datetime
     from pathlib import Path
-    
+
     reports_dir = Path(__file__).parent.parent / "reports"
     reports_dir.mkdir(exist_ok=True)
-    
+
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     json_path = reports_dir / f"canary_{instrument}_{timestamp}.json"
-    
+
     latencies = []
     for order in orders_data:
         if "latency_ms" in order:
             latencies.append(order["latency_ms"])
-    
+
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
-    
+
     # Count orders placed and filled from orders_data
     orders_placed = len(orders_data)
     orders_filled = sum(1 for order in orders_data if order.get("filled", False))
-    
+
     with open(json_path, "w") as f:
-        json.dump({
-            "instrument": instrument,
-            "timestamp": timestamp,
-            "metrics": {
-                "fill_rate": fill_rate,
-                "performance_factor": pf,
-                "avg_latency_ms": avg_latency,
-                "orders_placed": orders_placed,
-                "orders_filled": orders_filled,
+        json.dump(
+            {
+                "instrument": instrument,
+                "timestamp": timestamp,
+                "metrics": {
+                    "fill_rate": fill_rate,
+                    "performance_factor": pf,
+                    "avg_latency_ms": avg_latency,
+                    "orders_placed": orders_placed,
+                    "orders_filled": orders_filled,
+                },
+                "orders": orders_data,
             },
-            "orders": orders_data
-        }, f, indent=2)
-    
+            f,
+            indent=2,
+        )
+
     logger.info(f"Stored raw fills JSON at {json_path}")
 
     if fill_rate >= 92 and pf >= 0.9:
