@@ -10,9 +10,10 @@ import argparse
 import logging
 import os
 import sys
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from PIL import Image, ImageDraw, ImageFont
+from PIL.ImageFont import FreeTypeFont
 
 logging.basicConfig(
     level=logging.INFO,
@@ -59,7 +60,7 @@ def sanitize_screenshot(
             draw.rectangle(region, fill="black")
 
         try:
-            font = ImageFont.truetype("Arial", 20)
+            font: Union[FreeTypeFont, ImageFont.ImageFont] = ImageFont.truetype("Arial", 20)
         except IOError:
             font = ImageFont.load_default()
 
