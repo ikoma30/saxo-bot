@@ -10,7 +10,6 @@ import argparse
 import datetime
 import json
 import logging
-import os
 import sys
 import time
 from decimal import Decimal
@@ -215,7 +214,7 @@ def main() -> int:
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     json_path = reports_dir / f"canary_{args.instrument}_{timestamp}.json"
-    html_path = reports_dir / f"saxo_trader_go.html"
+    html_path = reports_dir / "saxo_trader_go.html"
 
     latencies = []
     for order in orders_data:
