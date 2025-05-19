@@ -23,7 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        environment: ${{ fromJSON( format('[\"{0}\"]', coalesce(github.event.inputs.environment, 'live,sim')) ) }}
+        environment: >-
+          ${{ github.event_name == 'workflow_dispatch'
+              && fromJSON(format('[\"{0}\"]', github.event.inputs.environment))
+              || fromJSON('[\"live\",\"sim\"]') }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.12
