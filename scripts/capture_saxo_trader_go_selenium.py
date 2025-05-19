@@ -10,14 +10,13 @@ import datetime
 import logging
 import os
 import sys
-import time
 from pathlib import Path
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,7 +54,7 @@ def capture_screenshot() -> str:
         driver.get("https://www.saxotrader.com/sim/login/")
         
         WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='text']"))
+            expected_conditions.presence_of_element_located((By.CSS_SELECTOR, "input[type='text']"))
         )
         
         username = os.environ.get("SIM_USERNAME")
@@ -71,14 +70,16 @@ def capture_screenshot() -> str:
         driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
         
         WebDriverWait(driver, 30).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".dashboard"))
+            expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".dashboard"))
         )
         
         logger.info(f"Navigating to account {ACCOUNT_ID}")
         driver.find_element(By.CSS_SELECTOR, "a[href*='accounts']").click()
         
         WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, f"div[data-account-id='{ACCOUNT_ID}']"))
+            expected_conditions.presence_of_element_located(
+                (By.CSS_SELECTOR, f"div[data-account-id='{ACCOUNT_ID}']")
+            )
         )
         driver.find_element(By.CSS_SELECTOR, f"div[data-account-id='{ACCOUNT_ID}']").click()
         
@@ -86,7 +87,7 @@ def capture_screenshot() -> str:
         driver.find_element(By.CSS_SELECTOR, "a[href*='history']").click()
         
         WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".trade-history"))
+            expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".trade-history"))
         )
         
         logger.info(f"Capturing screenshot to {screenshot_file}")

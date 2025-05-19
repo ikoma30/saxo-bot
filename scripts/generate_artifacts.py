@@ -10,6 +10,7 @@ This script runs all the necessary scripts to generate:
 
 import logging
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -38,15 +39,33 @@ def run_script(script_path: str, args: list[str] | None = None) -> bool:
     if args is None:
         args = []
     
+    safe_args = [shlex.quote(arg) for arg in args]
+    safe_script_path = shlex.quote(script_path)
     cmd = [sys.executable, script_path] + args
-    logger.info(f"Running script: {' '.join(cmd)}")
+    logger.info(f"Running script: {sys.executable} {safe_script_path} {' '.join(safe_args)}")
     
+    script_path_obj = Path(script_path).resolve()
+    scripts_dir_resolved = SCRIPTS_DIR.resolve()
+    
+    common_path = os.path.commonpath([str(script_path_obj), str(scripts_dir_resolved)])
+    if common_path != str(scripts_dir_resolved):
+        logger.error(f"Script path {script_path} is outside of scripts directory")
+        return False
+        
+    allowed_scripts = [
+        "modified_run_canary_test.py",
+        "get_prometheus_metrics.py",
+        "capture_saxo_trader_go_selenium.py"
+    ]
+    if Path(script_path).name not in allowed_scripts:
+        logger.error(f"Script {script_path} is not in the allowed list")
+        return False
+        
     try:
-        result = subprocess.run(
+        subprocess.run(  # nosec B603 # noqa: S603
             cmd,
             check=True,
-            stderr=subprocess.PIPE,
-            stdout=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
         logger.info(f"Script {script_path} ran successfully")

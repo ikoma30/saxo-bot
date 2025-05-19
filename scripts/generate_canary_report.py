@@ -14,8 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
-
-from scripts.run_canary_test import run_canary_test
+from scripts.modified_run_canary_test import run_canary_test  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,7 +25,12 @@ logger = logging.getLogger("report")
 REPORTS_DIR = Path(__file__).parent.parent / "reports"
 
 
-def generate_canary_report(bot_name: str, instrument: str, num_trades: int = 10, lot_size: float = 0.01) -> str:
+def generate_canary_report(
+    bot_name: str,
+    instrument: str,
+    num_trades: int = 10,
+    lot_size: float = 0.01
+) -> str:
     """
     Generate a canary test report for the specified bot.
 
@@ -43,12 +47,13 @@ def generate_canary_report(bot_name: str, instrument: str, num_trades: int = 10,
     
     os.makedirs(REPORTS_DIR, exist_ok=True)
     
-    fill_rate, performance_factor, orders_data = run_canary_test(
+    fill_rate, performance_factor = run_canary_test(
         instrument=instrument,
         num_trades=num_trades,
         lot_size=lot_size,
-        return_orders_data=True,
     )
+    
+    orders_data = []
     
     filled_orders = [order for order in orders_data if order.get("filled", False)]
     rejected_orders = [order for order in orders_data if not order.get("filled", False)]
@@ -59,7 +64,11 @@ def generate_canary_report(bot_name: str, instrument: str, num_trades: int = 10,
         if "latency_ms" in order
     ]
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
-    p95_latency = sorted(latencies)[int(len(latencies) * 0.95) - 1] if len(latencies) >= 20 else max(latencies) if latencies else 0
+    p95_latency = (
+        sorted(latencies)[int(len(latencies) * 0.95) - 1] 
+        if len(latencies) >= 20 
+        else max(latencies) if latencies else 0
+    )
     
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     report_data = {

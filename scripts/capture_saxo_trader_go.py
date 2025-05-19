@@ -6,13 +6,13 @@ This script uses Playwright to automate browser interaction with SaxoTraderGO,
 logs in, navigates to the account page, and captures a screenshot of executed trades.
 """
 
+import asyncio
 import datetime
 import logging
 import os
 import sys
 from pathlib import Path
 
-import asyncio
 from playwright.async_api import async_playwright
 
 logging.basicConfig(
