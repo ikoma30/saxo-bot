@@ -15,6 +15,7 @@ import os
 import shutil
 import sys
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
 
 sys.path.append(str(Path(__file__).parent.parent))
 from tests.fixtures.prom_mock_endpoint import get_mock_metric  # noqa: E402
@@ -48,7 +49,7 @@ def generate_canary_report(bot_name: str, instrument: str) -> str:
     fill_rate = 0.93 if bot_name == "Main" else 0.92
     performance_factor = 0.95 if bot_name == "Main" else 0.92
 
-    orders_data = []
+    orders_data: List[Dict[str, Any]] = []
 
     for i in range(10):
         is_filled = i < 9  # 9 out of 10 orders are filled (90% fill rate)
@@ -70,7 +71,13 @@ def generate_canary_report(bot_name: str, instrument: str) -> str:
     filled_orders = [order for order in orders_data if order.get("filled", False)]
     rejected_orders = [order for order in orders_data if not order.get("filled", False)]
 
-    latencies = [order.get("latency_ms", 0) for order in orders_data if "latency_ms" in order]
+    # Extract latencies as float values only, filtering out None and non-numeric values
+    latencies: List[float] = [
+        float(order.get("latency_ms", 0))
+        for order in orders_data
+        if "latency_ms" in order and order["latency_ms"] is not None
+    ]
+
     avg_latency = sum(latencies) / len(latencies) if latencies else 0
     p95_latency = (
         sorted(latencies)[int(len(latencies) * 0.95) - 1]
@@ -116,7 +123,7 @@ def generate_prometheus_metrics() -> str:
 
     os.makedirs(REPORTS_DIR, exist_ok=True)
 
-    metrics_data = {}
+    metrics_data: Dict[str, Any] = {}
     for metric_name in [
         "bot_order_attempt_total",
         "bot_order_filled_total",
