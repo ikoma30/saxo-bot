@@ -9,5 +9,10 @@ from src.core.guards.priority_guard import PriorityGuard
 from src.core.guards.slippage_guard import SlippageGuard
 
 __all__ = [
-    "SlippageGuard", "ModeGuard", "LatencyGuard", "KillSwitch", "PriorityGuard", "TradingMode"
+    "SlippageGuard",
+    "ModeGuard",
+    "LatencyGuard",
+    "KillSwitch",
+    "PriorityGuard",
+    "TradingMode",
 ]

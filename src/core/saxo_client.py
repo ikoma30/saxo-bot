@@ -51,14 +51,14 @@ class SaxoClient:
         self.token_expiry: str | None = None
         self.use_trade_v3 = os.environ.get("USE_TRADE_V3", "false").lower() == "true"
         self.timeout = 5  # 5 second timeout as per requirements
-        
+
         # Initialize guard systems
         self.slippage_guard = SlippageGuard()
         self.mode_guard = ModeGuard()
         self.kill_switch = KillSwitch()
         self.latency_guard = LatencyGuard()
         self.priority_guard = PriorityGuard()
-        
+
         self.current_mode = TradingMode.LV_LL
 
     @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
@@ -201,20 +201,18 @@ class SaxoClient:
         if precheck_result.get("SlippageGuardRejection"):
             logger.error("Order rejected by SlippageGuard due to excessive spread")
             return {"OrderRejected": True, "Reason": "SlippageGuard: Excessive spread"}
-        
+
         if precheck_result.get("KillSwitchRejection"):
             logger.error("Order rejected by KillSwitch due to daily loss limit")
             return {"OrderRejected": True, "Reason": "KillSwitch: Daily loss limit exceeded"}
-            
+
         if precheck_result.get("ModeGuardRejection"):
-            logger.error(
-                "Order rejected by ModeGuard due to excessive mode transitions"
-            )
+            logger.error("Order rejected by ModeGuard due to excessive mode transitions")
             return {
-                "OrderRejected": True, 
-                "Reason": "ModeGuard: Trading paused due to excessive mode transitions"
+                "OrderRejected": True,
+                "Reason": "ModeGuard: Trading paused due to excessive mode transitions",
             }
-            
+
         if precheck_result.get("LatencyGuardRejection"):
             logger.error("Order rejected by LatencyGuard due to high API latency")
             return {"OrderRejected": True, "Reason": "LatencyGuard: High API latency detected"}
@@ -334,7 +332,7 @@ class SaxoClient:
         mid = (ask + bid) / 2
 
         start_time = time.time()
-        
+
         fill_price = ask if side == "Buy" else bid
         if not self.slippage_guard.check_slippage(instrument, mid, fill_price):
             logger.error(f"SlippageGuard rejected {side} order for {instrument} - excessive spread")
@@ -367,12 +365,12 @@ class SaxoClient:
             )
             response.raise_for_status()
             precheck_result: dict[str, Any] = response.json()
-            
+
             latency_ms = (time.time() - start_time) * 1000
             if not self.latency_guard.check_latency(latency_ms):
                 logger.error(f"LatencyGuard triggered due to high latency: {latency_ms:.2f} ms")
                 return {"LatencyGuardRejection": True, "PreCheckResult": "Rejected"}
-            
+
             logger.info("Order precheck completed")
             return precheck_result
         except requests.HTTPError as e:
