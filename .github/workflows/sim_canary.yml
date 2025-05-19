@@ -28,10 +28,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install poetry
           poetry install --no-root
-          
-      - name: Install project (editable)
-        run: |
-          pip install -e ./src
       
       - name: Create .env.sim file with credentials
         run: |
@@ -45,6 +41,8 @@ jobs:
           echo "::add-mask::${{ secrets.SIM_ACCOUNT_KEY }}"
       
       - name: Run SIM canary test
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           source .env.sim
           python scripts/run_canary_test_with_args.py \
