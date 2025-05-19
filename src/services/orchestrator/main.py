@@ -30,7 +30,27 @@ from src.core.guards import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("orchestrator")
 
-app = FastAPI(title="Saxo Bot Orchestrator")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for FastAPI."""
+    global client, current_state, is_healthy
+    
+    client = SaxoClient(environment=ENV)
+    
+    background_tasks = BackgroundTasks()
+    background_tasks.add_task(initialize_orchestrator)
+    await background_tasks()
+    
+    yield
+    
+    logger.info("Shutting down orchestrator service")
+
+app = FastAPI(
+    title="Saxo Bot Orchestrator",
+    lifespan=lifespan
+)
 
 class OrchestratorState(str, Enum):
     """Orchestrator state enum."""
@@ -69,16 +89,7 @@ class StateTransition(BaseModel):
     reason: Optional[str] = None
 
 
-@app.on_event("startup")
-async def startup_event() -> None:
-    """Initialize the service on startup."""
-    global client, current_state, is_healthy
-    
-    client = SaxoClient(environment=ENV)
-    
-    background_tasks = BackgroundTasks()
-    background_tasks.add_task(initialize_orchestrator)
-    await background_tasks()
+
 
 
 async def initialize_orchestrator() -> None:
