@@ -146,20 +146,20 @@ def check_opsgenie_key() -> bool:
 def send_alert(message: str, severity: str = "warning") -> bool:
     """
     Send an alert through available channels with fallback mechanism.
-    
+
     Tries Slack first, then OpsGenie as fallback, then sendmail as final fallback.
-    
+
     Args:
         message: Alert message to send
         severity: Alert severity (info, warning, error, critical)
-        
+
     Returns:
         bool: True if alert was sent through any channel, False if all channels failed
     """
     import json
     import subprocess
     from datetime import datetime
-    
+
     slack_webhook = os.environ.get("SLACK_WEBHOOK")
     if slack_webhook and slack_webhook.startswith("https://hooks.slack.com/services/"):
         try:
@@ -169,30 +169,41 @@ def send_alert(message: str, severity: str = "warning") -> bool:
                 "error": "#ff9900",
                 "critical": "#E01E5A",
             }.get(severity, "#36a64f")
-            
+
             payload = {
-                "attachments": [{
-                    "color": color,
-                    "title": "Saxo Bot Alert",
-                    "fields": [
-                        {"title": "env", "value": os.environ.get("ENV", "unknown"), "short": True},
-                        {"title": "bot", "value": os.environ.get("BOT_ID", "parent"), "short": True},
-                        {"title": "event", "value": "MONITORING", "short": True},
-                        {"title": "details", "value": message}
-                    ],
-                    "footer": "saxo-bot-orchestrator",
-                    "ts": int(datetime.now().timestamp())
-                }]
+                "attachments": [
+                    {
+                        "color": color,
+                        "title": "Saxo Bot Alert",
+                        "fields": [
+                            {
+                                "title": "env",
+                                "value": os.environ.get("ENV", "unknown"),
+                                "short": True,
+                            },
+                            {
+                                "title": "bot",
+                                "value": os.environ.get("BOT_ID", "parent"),
+                                "short": True,
+                            },
+                            {"title": "event", "value": "MONITORING", "short": True},
+                            {"title": "details", "value": message},
+                        ],
+                        "footer": "saxo-bot-orchestrator",
+                        "ts": int(datetime.now().timestamp()),
+                    }
+                ]
             }
-            
+
             import requests
+
             response = requests.post(
                 slack_webhook,
                 headers={"Content-Type": "application/json"},
                 data=json.dumps(payload),
                 timeout=5,
             )
-            
+
             if response.status_code == 200:
                 logger.info(f"Alert sent to Slack: {message}")
                 return True
@@ -200,32 +211,33 @@ def send_alert(message: str, severity: str = "warning") -> bool:
                 logger.warning(f"Failed to send alert to Slack: HTTP {response.status_code}")
         except Exception as e:
             logger.warning(f"Error sending alert to Slack: {str(e)}")
-    
+
     opsgenie_key = os.environ.get("OG_GENIE_KEY")
     if opsgenie_key and len(opsgenie_key) >= 20:
         try:
-            payload = {
+            opsgenie_payload: dict[str, object] = {
                 "message": f"Saxo Bot Alert: {message}",
                 "description": message,
                 "priority": severity,
                 "tags": [
                     os.environ.get("ENV", "unknown"),
                     os.environ.get("BOT_ID", "parent"),
-                    "monitoring"
-                ]
+                    "monitoring",
+                ],
             }
-            
+
             import requests
+
             response = requests.post(
                 "https://api.opsgenie.com/v2/alerts",
                 headers={
                     "Authorization": f"GenieKey {opsgenie_key}",
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
                 },
-                data=json.dumps(payload),
+                data=json.dumps(opsgenie_payload),
                 timeout=5,
             )
-            
+
             if response.status_code in (200, 201, 202):
                 logger.info(f"Alert sent to OpsGenie: {message}")
                 return True
@@ -233,14 +245,14 @@ def send_alert(message: str, severity: str = "warning") -> bool:
                 logger.warning(f"Failed to send alert to OpsGenie: HTTP {response.status_code}")
         except Exception as e:
             logger.warning(f"Error sending alert to OpsGenie: {str(e)}")
-    
+
     try:
         ops_email = "ops@example.com"  # This should be configured in environment or config
         subject = f"ALERT: Saxo Bot {severity.upper()}"
         email_body = f"Saxo Bot Alert\n\nEnvironment: {os.environ.get('ENV', 'unknown')}\nBot: {os.environ.get('BOT_ID', 'parent')}\nSeverity: {severity}\n\n{message}"
-        
+
         email_content = f"Subject: {subject}\nTo: {ops_email}\n\n{email_body}"
-        
+
         process = subprocess.Popen(
             ["sendmail", "-t"],
             stdin=subprocess.PIPE,
@@ -248,7 +260,7 @@ def send_alert(message: str, severity: str = "warning") -> bool:
             stderr=subprocess.PIPE,
         )
         stdout, stderr = process.communicate(input=email_content.encode())
-        
+
         if process.returncode == 0:
             logger.info(f"Alert sent via email to {ops_email}")
             return True
@@ -281,7 +293,7 @@ def verify_all_monitoring() -> bool:
 
     slack_configured = check_slack_webhook()
     opsgenie_configured = check_opsgenie_key()
-    
+
     # Check if at least one alert channel is configured
     alert_channels_available = slack_configured or opsgenie_configured
     if not alert_channels_available:
