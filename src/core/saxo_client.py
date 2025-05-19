@@ -7,6 +7,7 @@ with specific focus on trading operations.
 
 import logging
 import os
+import time
 from decimal import Decimal
 from typing import Any
 
@@ -14,7 +15,14 @@ import requests
 
 from src.common.exceptions import SaxoApiError
 from src.common.retry_utils import retryable
-from src.core.slippage_guard import SlippageGuard
+from src.core.guards import (
+    SlippageGuard,
+    ModeGuard,
+    KillSwitch,
+    LatencyGuard,
+    PriorityGuard,
+    TradingMode,
+)
 
 logger = logging.getLogger("saxo")
 
@@ -43,7 +51,15 @@ class SaxoClient:
         self.token_expiry: str | None = None
         self.use_trade_v3 = os.environ.get("USE_TRADE_V3", "false").lower() == "true"
         self.timeout = 5  # 5 second timeout as per requirements
-        self.slippage_guard = SlippageGuard()  # Initialize SlippageGuard
+        
+        # Initialize guard systems
+        self.slippage_guard = SlippageGuard()
+        self.mode_guard = ModeGuard()
+        self.kill_switch = KillSwitch()
+        self.latency_guard = LatencyGuard()
+        self.priority_guard = PriorityGuard()
+        
+        self.current_mode = TradingMode.LV_LL
 
     @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
     def authenticate(self) -> bool:
@@ -185,6 +201,18 @@ class SaxoClient:
         if precheck_result.get("SlippageGuardRejection"):
             logger.error("Order rejected by SlippageGuard due to excessive spread")
             return {"OrderRejected": True, "Reason": "SlippageGuard: Excessive spread"}
+        
+        if precheck_result.get("KillSwitchRejection"):
+            logger.error("Order rejected by KillSwitch due to daily loss limit")
+            return {"OrderRejected": True, "Reason": "KillSwitch: Daily loss limit exceeded"}
+            
+        if precheck_result.get("ModeGuardRejection"):
+            logger.error("Order rejected by ModeGuard due to excessive mode transitions")
+            return {"OrderRejected": True, "Reason": "ModeGuard: Trading paused due to excessive mode transitions"}
+            
+        if precheck_result.get("LatencyGuardRejection"):
+            logger.error("Order rejected by LatencyGuard due to high API latency")
+            return {"OrderRejected": True, "Reason": "LatencyGuard: High API latency detected"}
 
         if precheck_result.get("BlockingDisclaimers"):
             for disclaimer in precheck_result.get("BlockingDisclaimers", []):
@@ -251,6 +279,13 @@ class SaxoClient:
         """
         Precheck an order before placing it.
 
+        Implements a chain-of-responsibility pattern for guard systems:
+        1. Check if KillSwitch is active
+        2. Check if ModeGuard is paused
+        3. Check if LatencyGuard is triggered
+        4. Check if SlippageGuard rejects the order
+        5. Perform API precheck
+
         Args:
             instrument: The instrument identifier (e.g., "EURUSD")
             order_type: The type of order (e.g., "Market", "Limit")
@@ -265,6 +300,24 @@ class SaxoClient:
             logger.error("Not authenticated or missing account key")
             return None
 
+        current_equity = 800000.0  # 800,000 JPY
+
+        if self.kill_switch.is_active():
+            logger.error("KillSwitch is active, rejecting order")
+            return {"KillSwitchRejection": True, "PreCheckResult": "Rejected"}
+
+        if not self.kill_switch.check_equity(current_equity):
+            logger.error("KillSwitch triggered due to excessive daily loss")
+            return {"KillSwitchRejection": True, "PreCheckResult": "Rejected"}
+
+        if self.mode_guard.is_paused():
+            logger.error("ModeGuard is paused, rejecting order")
+            return {"ModeGuardRejection": True, "PreCheckResult": "Rejected"}
+
+        if self.latency_guard.is_triggered():
+            logger.error("LatencyGuard is triggered, rejecting order")
+            return {"LatencyGuardRejection": True, "PreCheckResult": "Rejected"}
+
         quote_data = self.get_quote(instrument)
         if not quote_data or "Quote" not in quote_data:
             logger.error(f"Failed to get quote for {instrument}, cannot check spread")
@@ -275,8 +328,9 @@ class SaxoClient:
         bid = float(quote.get("Bid", 0))
         mid = (ask + bid) / 2
 
+        start_time = time.time()
+        
         fill_price = ask if side == "Buy" else bid
-
         if not self.slippage_guard.check_slippage(instrument, mid, fill_price):
             logger.error(f"SlippageGuard rejected {side} order for {instrument} - excessive spread")
             return {"SlippageGuardRejection": True, "PreCheckResult": "Rejected"}
@@ -308,6 +362,12 @@ class SaxoClient:
             )
             response.raise_for_status()
             precheck_result: dict[str, Any] = response.json()
+            
+            latency_ms = (time.time() - start_time) * 1000
+            if not self.latency_guard.check_latency(latency_ms):
+                logger.error(f"LatencyGuard triggered due to high latency: {latency_ms:.2f} ms")
+                return {"LatencyGuardRejection": True, "PreCheckResult": "Rejected"}
+            
             logger.info("Order precheck completed")
             return precheck_result
         except requests.HTTPError as e:

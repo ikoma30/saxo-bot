@@ -68,4 +68,9 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
 python_classes = "Test*"
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "sim: SIM environment tests"
+]
 addopts = "--cov=src --cov-report=term --cov-report=xml --cov-branch"

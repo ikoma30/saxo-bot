@@ -4,6 +4,10 @@ services:
     image: ghcr.io/ikoma30/saxo-bot-parent:${TAG}
     env_file: .env.live
     cpus: "0-1"
+    deploy:
+      resources:
+        limits:
+          memory: "1500M"
     networks: [bot_net]
     restart: unless-stopped
 
@@ -11,6 +15,10 @@ services:
     image: ghcr.io/ikoma30/saxo-bot-main:${TAG}
     env_file: .env.live
     cpus: "2"
+    deploy:
+      resources:
+        limits:
+          memory: "1500M"
     networks: [bot_net]
     depends_on: [parent_core]
     restart: unless-stopped
@@ -19,6 +27,10 @@ services:
     image: ghcr.io/ikoma30/saxo-bot-microrev:${TAG}
     env_file: .env.live
     cpus: "3"
+    deploy:
+      resources:
+        limits:
+          memory: "1500M"
     networks: [bot_net]
     depends_on: [parent_core]
     restart: unless-stopped
