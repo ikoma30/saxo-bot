@@ -2,7 +2,7 @@ name: Rotate Refresh Token
 
 on:
   schedule:
-    - cron: '0 0 * * 0'  # Weekly on Sunday at midnight UTC
+    - cron: '45 * * * *'  # Weekly on Sunday at midnight UTC
   workflow_dispatch:
     inputs:
       environment:
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        environment: ${{ github.event_name == 'workflow_dispatch' && fromJSON('["' + github.event.inputs.environment + '"]') || fromJSON('["live", "sim"]') }}
+        environment: ${{ fromJSON( format('[\"{0}\"]', coalesce(github.event.inputs.environment, 'live,sim')) ) }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.12
