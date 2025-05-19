@@ -14,6 +14,7 @@ import requests
 
 from src.common.exceptions import SaxoApiError
 from src.common.retry_utils import retryable
+from src.core.slippage_guard import SlippageGuard
 
 logger = logging.getLogger("saxo")
 
@@ -42,6 +43,7 @@ class SaxoClient:
         self.token_expiry: str | None = None
         self.use_trade_v3 = os.environ.get("USE_TRADE_V3", "false").lower() == "true"
         self.timeout = 5  # 5 second timeout as per requirements
+        self.slippage_guard = SlippageGuard()  # Initialize SlippageGuard
 
     @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
     def authenticate(self) -> bool:
@@ -180,6 +182,10 @@ class SaxoClient:
             logger.error("Order precheck failed")
             return None
 
+        if precheck_result.get("SlippageGuardRejection"):
+            logger.error("Order rejected by SlippageGuard due to excessive spread")
+            return {"OrderRejected": True, "Reason": "SlippageGuard: Excessive spread"}
+
         if precheck_result.get("BlockingDisclaimers"):
             for disclaimer in precheck_result.get("BlockingDisclaimers", []):
                 disclaimer_id = disclaimer.get("Id")
@@ -258,6 +264,22 @@ class SaxoClient:
         if not self.access_token or not self.account_key:
             logger.error("Not authenticated or missing account key")
             return None
+
+        quote_data = self.get_quote(instrument)
+        if not quote_data or "Quote" not in quote_data:
+            logger.error(f"Failed to get quote for {instrument}, cannot check spread")
+            return None
+
+        quote = quote_data["Quote"]
+        ask = float(quote.get("Ask", 0))
+        bid = float(quote.get("Bid", 0))
+        mid = (ask + bid) / 2
+
+        fill_price = ask if side == "Buy" else bid
+
+        if not self.slippage_guard.check_slippage(instrument, mid, fill_price):
+            logger.error(f"SlippageGuard rejected {side} order for {instrument} - excessive spread")
+            return {"SlippageGuardRejection": True, "PreCheckResult": "Rejected"}
 
         headers = self._get_headers()
 
