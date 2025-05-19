@@ -45,26 +45,14 @@ jobs:
           poetry install --no-root
           pip install -e .
       
-      - name: Create .env.sim file with credentials
-        run: |
-          echo "SIM_CLIENT_ID=${{ secrets.SIM_CLIENT_ID }}" > .env.sim
-          echo "::add-mask::${{ secrets.SIM_CLIENT_ID }}"
-          echo "SIM_CLIENT_SECRET=${{ secrets.SIM_CLIENT_SECRET }}" >> .env.sim
-          echo "::add-mask::${{ secrets.SIM_CLIENT_SECRET }}"
-          echo "SIM_REFRESH_TOKEN=${{ secrets.SIM_REFRESH_TOKEN }}" >> .env.sim
-          echo "::add-mask::${{ secrets.SIM_REFRESH_TOKEN }}"
-          echo "SIM_ACCOUNT_KEY=${{ secrets.SIM_ACCOUNT_KEY }}" >> .env.sim
-          echo "::add-mask::${{ secrets.SIM_ACCOUNT_KEY }}"
-      
       - name: Run SIM canary test
         env:
-          PYTHONPATH: ${{ github.workspace }}/src
+          SIM_CLIENT_ID:      ${{ secrets.SIM_CLIENT_ID }}
+          SIM_CLIENT_SECRET:  ${{ secrets.SIM_CLIENT_SECRET }}
+          SIM_REFRESH_TOKEN:  ${{ secrets.SIM_REFRESH_TOKEN }}
+          SIM_ACCOUNT_KEY:    ${{ secrets.SIM_ACCOUNT_KEY }}
+          PYTHONPATH:         ${{ github.workspace }}/src
         run: |
-          source .env.sim
-          export CLIENT_ID=$SIM_CLIENT_ID
-          export CLIENT_SECRET=$SIM_CLIENT_SECRET
-          export REFRESH_TOKEN=$SIM_REFRESH_TOKEN
-          export ACCOUNT_KEY=$SIM_ACCOUNT_KEY
           python scripts/run_canary_test_with_args.py \
             --instrument USDJPY \
             --trades 10 \
