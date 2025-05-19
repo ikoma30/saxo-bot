@@ -1,0 +1,126 @@
+{
+  "bot_name": "Micro-Rev",
+  "instrument": "EURJPY",
+  "timestamp": "20250519_062813",
+  "metrics": {
+    "fill_rate": 0.92,
+    "performance_factor": 0.92,
+    "avg_latency_ms": 142.5,
+    "p95_latency_ms": 165,
+    "orders_placed": 10,
+    "orders_filled": 9,
+    "orders_rejected": 1
+  },
+  "orders": [
+    {
+      "order_id": "ORD123456780",
+      "instrument": "EURJPY",
+      "direction": "Buy",
+      "size": 0.01,
+      "price": 165.725,
+      "filled": true,
+      "rejection_reason": null,
+      "timestamp": "2025-05-19T06:28:13.451834",
+      "latency_ms": 120
+    },
+    {
+      "order_id": "ORD123456781",
+      "instrument": "EURJPY",
+      "direction": "Sell",
+      "size": 0.01,
+      "price": 165.75,
+      "filled": true,
+      "rejection_reason": null,
+      "timestamp": "2025-05-19T06:27:13.451850",
+      "latency_ms": 125
+    },
+    {
+      "order_id": "ORD123456782",
+      "instrument": "EURJPY",
+      "direction": "Buy",
+      "size": 0.01,
+      "price": 165.775,
+      "filled": true,
+      "rejection_reason": null,
+      "timestamp": "2025-05-19T06:26:13.451859",
+      "latency_ms": 130
+    },
+    {
+      "order_id": "ORD123456783",
+      "instrument": "EURJPY",
+      "direction": "Sell",
+      "size": 0.01,
+      "price": 165.79999999999998,
+      "filled": true,
+      "rejection_reason": null,
+      "timestamp": "2025-05-19T06:25:13.451866",
+      "latency_ms": 135
+    },
+    {
+      "order_id": "ORD123456784",
+      "instrument": "EURJPY",
+      "direction": "Buy",
+      "size": 0.01,
+      "price": 165.825,
+      "filled": true,
+      "rejection_reason": null,
+      "timestamp": "2025-05-19T06:24:13.451873",
+      "latency_ms": 140
+    },
+    {
+      "order_id": "ORD123456785",
+      "instrument": "EURJPY",
+      "direction": "Sell",
+      "size": 0.01,
+      "price": 165.85,
+      "filled": true,
+      "rejection_reason": null,
+      "timestamp": "2025-05-19T06:23:13.451880",
+      "latency_ms": 145
+    },
+    {
+      "order_id": "ORD123456786",
+      "instrument": "EURJPY",
+      "direction": "Buy",
+      "size": 0.01,
+      "price": 165.875,
+      "filled": true,
+      "rejection_reason": null,
+      "timestamp": "2025-05-19T06:22:13.451887",
+      "latency_ms": 150
+    },
+    {
+      "order_id": "ORD123456787",
+      "instrument": "EURJPY",
+      "direction": "Sell",
+      "size": 0.01,
+      "price": 165.9,
+      "filled": true,
+      "rejection_reason": null,
+      "timestamp": "2025-05-19T06:21:13.451893",
+      "latency_ms": 155
+    },
+    {
+      "order_id": "ORD123456788",
+      "instrument": "EURJPY",
+      "direction": "Buy",
+      "size": 0.01,
+      "price": 165.92499999999998,
+      "filled": true,
+      "rejection_reason": null,
+      "timestamp": "2025-05-19T06:20:13.451900",
+      "latency_ms": 160
+    },
+    {
+      "order_id": "ORD123456789",
+      "instrument": "EURJPY",
+      "direction": "Sell",
+      "size": 0.01,
+      "price": 165.95,
+      "filled": false,
+      "rejection_reason": "SlippageGuard",
+      "timestamp": "2025-05-19T06:19:13.451904",
+      "latency_ms": 165
+    }
+  ]
+}

@@ -11,9 +11,9 @@ This WBS is based on the three specification files:
 | ID | Task | Owner | Estimate (days) | Dependencies | Status |
 |----|------|-------|----------------|--------------|--------|
 | 2.1 | Create repository structure | Devin | 0.5 | - | Completed |
-| 2.2 | Set up GitHub Actions workflow for lint and pytest-cov | Devin | 0.5 | 2.1 | In Progress |
-| 2.3 | Create initial documentation | Devin | 0.5 | 2.1 | In Progress |
-| 2.4 | List clarification questions | Devin | 0.5 | - | In Progress |
+| 2.2 | Set up GitHub Actions workflow for lint and pytest-cov | Devin | 0.5 | 2.1 | Completed |
+| 2.3 | Create initial documentation | Devin | 0.5 | 2.1 | Completed |
+| 2.4 | List clarification questions | Devin | 0.5 | - | Completed |
 
 ## Phase-3 Tasks (Core Infrastructure)
 
@@ -46,6 +46,7 @@ This WBS is based on the three specification files:
 | 4.8 | Set up Main BOT metrics and monitoring | TBD | 1 | 4.1, 3.6 | Not Started |
 | 4.9 | Create unit tests for Main BOT | TBD | 2 | 4.1-4.8 | Not Started |
 | 4.10 | Implement integration tests | TBD | 2 | 4.9 | Not Started |
+| 4.11 | Implement spec parity fixes | Devin | 3 | 4.* | Completed |
 
 ## Phase-5 Tasks (Micro-Rev BOT Implementation)
 

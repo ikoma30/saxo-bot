@@ -1,0 +1,5 @@
+# Ruff configuration file
+
+# Ignore specific rules for specific files
+[per-file-ignores]
+"scripts/generate_artifacts.py" = ["S603"]

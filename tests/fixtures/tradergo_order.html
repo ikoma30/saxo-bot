@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaxoTraderGO - Trade History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #0057b7;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-weight: bold;
+            font-size: 24px;
+        }
+        .account-info {
+            background-color: white;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .trade-history {
+            background-color: white;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .filled {
+            color: green;
+        }
+        .rejected {
+            color: red;
+        }
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">SaxoTraderGO</div>
+        <div>Simulation Environment</div>
+    </div>
+    
+    <div class="dashboard">
+        <div class="account-info">
+            <h2>Account Information</h2>
+            <p><strong>Account ID:</strong> TRIAL_20477947</p>
+            <p><strong>Account Key:</strong> PjXXja494N5ZimF-lPRqgQ==</p>
+            <p><strong>Balance:</strong> ¥800,000</p>
+            <p><strong>Equity:</strong> ¥802,500</p>
+            <p><strong>Available Margin:</strong> ¥750,000</p>
+        </div>
+    </div>
+    
+    <div class="trade-history">
+        <h2>Trade History</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Instrument</th>
+                    <th>Direction</th>
+                    <th>Size</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                    <th>Timestamp</th>
+                    <th>Latency (ms)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>ORD123456789</td>
+                    <td>USDJPY</td>
+                    <td>Buy</td>
+                    <td>0.01</td>
+                    <td>154.325</td>
+                    <td class="filled">Filled</td>
+                    <td>2025-05-19 06:15:23</td>
+                    <td>125</td>
+                </tr>
+                <tr>
+                    <td>ORD123456790</td>
+                    <td>USDJPY</td>
+                    <td>Sell</td>
+                    <td>0.01</td>
+                    <td>154.350</td>
+                    <td class="filled">Filled</td>
+                    <td>2025-05-19 06:17:45</td>
+                    <td>118</td>
+                </tr>
+                <tr>
+                    <td>ORD123456791</td>
+                    <td>EURJPY</td>
+                    <td>Buy</td>
+                    <td>0.01</td>
+                    <td>165.725</td>
+                    <td class="filled">Filled</td>
+                    <td>2025-05-19 06:20:12</td>
+                    <td>132</td>
+                </tr>
+                <tr>
+                    <td>ORD123456792</td>
+                    <td>USDJPY</td>
+                    <td>Buy</td>
+                    <td>0.01</td>
+                    <td>154.400</td>
+                    <td class="rejected">Rejected (SlippageGuard)</td>
+                    <td>2025-05-19 06:22:37</td>
+                    <td>95</td>
+                </tr>
+                <tr>
+                    <td>ORD123456793</td>
+                    <td>EURJPY</td>
+                    <td>Sell</td>
+                    <td>0.01</td>
+                    <td>165.750</td>
+                    <td class="filled">Filled</td>
+                    <td>2025-05-19 06:25:01</td>
+                    <td>142</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
