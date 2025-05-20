@@ -14,6 +14,7 @@ from typing import Any
 import requests
 
 from src.common.exceptions import SaxoApiError
+from src.common.http_utils import request
 from src.common.retry_utils import retryable
 from src.core.guards import (
     KillSwitch,
@@ -61,7 +62,7 @@ class SaxoClient:
 
         self.current_mode = TradingMode.LV_LL
 
-    @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
+    @retryable(max_attempts=3, statuses=[429], backoff_factor=1.0, jitter_factor=0.2)
     def authenticate(self) -> bool:
         """
         Authenticate with the Saxo Bank API using the refresh token.
@@ -82,7 +83,12 @@ class SaxoClient:
 
         try:
             logger.info("Authenticating with Saxo Bank API")
-            response = requests.post(f"{self.base_url}/token", data=data, timeout=self.timeout)
+            response = request(
+                "POST",
+                f"{self.base_url}/token",
+                data=data,
+                timeout=self.timeout,
+            )
             response.raise_for_status()
             token_data = response.json()
             self.access_token = token_data.get("access_token")
@@ -113,7 +119,7 @@ class SaxoClient:
 
         return {"Authorization": f"Bearer {self.access_token}"}
 
-    @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
+    @retryable(max_attempts=3, statuses=[429], backoff_factor=1.0, jitter_factor=0.2)
     def get_quote(self, instrument: str) -> dict[str, Any] | None:
         """
         Get a quote for the specified instrument.
@@ -134,7 +140,8 @@ class SaxoClient:
 
         try:
             logger.info(f"Getting quote for instrument {instrument}")
-            response = requests.get(
+            response = request(
+                "GET",
                 f"{self.base_url}{endpoint}",
                 headers=headers,
                 params=params,
@@ -161,7 +168,7 @@ class SaxoClient:
             logger.error(f"Quote request failed for {instrument}: {str(e)}")
             return None
 
-    @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
+    @retryable(max_attempts=3, statuses=[429], backoff_factor=1.0, jitter_factor=0.2)
     def _handle_blocking_disclaimers(
         self,
         precheck_resp: dict[str, Any],
@@ -201,21 +208,30 @@ class SaxoClient:
                 return None
 
         if instrument is None or order_type is None or side is None or amount is None:
+            order_data = precheck_resp.get("Order", {})
+            instrument = order_data.get("Uic", instrument)
+            order_type = order_data.get("OrderType", order_type)
+            side = order_data.get("BuySell", side)
+            amount = order_data.get("Amount", amount)
+            price = order_data.get("Price", price)
+
+        if instrument and order_type and side and amount:
+            final_precheck = self._precheck_order(instrument, order_type, side, amount, price)
+            if not final_precheck:
+                logger.error("Order precheck failed after accepting disclaimers")
+                return None
+
+            # Check if there are still blocking disclaimers
+            if final_precheck.get("BlockingDisclaimers"):
+                logger.error("Blocking disclaimers still present after acceptance")
+                return None
+
+            return final_precheck
+        else:
+            logger.error("Insufficient order details to re-run precheck")
             return None
 
-        final_precheck = self._precheck_order(instrument, order_type, side, amount, price)
-        if not final_precheck:
-            logger.error("Order precheck failed after accepting disclaimers")
-            return None
-
-        # Check if there are still blocking disclaimers
-        if final_precheck.get("BlockingDisclaimers"):
-            logger.error("Blocking disclaimers still present after acceptance")
-            return None
-
-        return final_precheck
-
-    @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
+    @retryable(max_attempts=3, statuses=[429], backoff_factor=1.0, jitter_factor=0.2)
     def place_order(
         self,
         instrument: str,
@@ -301,7 +317,8 @@ class SaxoClient:
 
         try:
             logger.info(f"Placing {side} {order_type} order for {amount} {instrument}")
-            response = requests.post(
+            response = request(
+                "POST",
                 f"{self.base_url}{endpoint}",
                 headers=headers,
                 json=order_data,
@@ -310,12 +327,19 @@ class SaxoClient:
             response.raise_for_status()
             order_response: dict[str, Any] = response.json()
             logger.info(f"Successfully placed order: {order_response.get('OrderId')}")
-            return order_response
+            return {"OrderId": str(order_response.get("OrderId"))}
         except requests.HTTPError as e:
             if hasattr(e, "response") and e.response is not None:
                 logger.error(f"Failed to place order with status {e.response.status_code}")
+                response_body = None
+                try:
+                    if hasattr(e.response, "json"):
+                        response_body = e.response.json()
+                except (ValueError, requests.exceptions.JSONDecodeError):
+                    response_body = {"error": e.response.text} if hasattr(e.response, "text") else None
+                
                 raise SaxoApiError(
-                    "Failed to place order", e.response.status_code, e.response.json()
+                    "Failed to place order", e.response.status_code, response_body
                 ) from e
             else:
                 logger.error(f"Failed to place order: {str(e)}")
@@ -324,7 +348,7 @@ class SaxoClient:
             logger.error(f"Order request failed: {str(e)}")
             return None
 
-    @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
+    @retryable(max_attempts=3, statuses=[429], backoff_factor=1.0, jitter_factor=0.2)
     def _precheck_order(
         self,
         instrument: str,
@@ -411,7 +435,8 @@ class SaxoClient:
 
         try:
             logger.info(f"Prechecking {side} {order_type} order for {amount} {instrument}")
-            response = requests.post(
+            response = request(
+                "POST",
                 f"{self.base_url}{endpoint}",
                 headers=headers,
                 json=order_data,
@@ -440,7 +465,7 @@ class SaxoClient:
             logger.error(f"Order precheck request failed: {str(e)}")
             return None
 
-    @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
+    @retryable(max_attempts=3, statuses=[429], backoff_factor=1.0, jitter_factor=0.2)
     def _accept_disclaimer(self, disclaimer_id: str) -> bool:
         """
         Accept a disclaimer.
@@ -460,7 +485,8 @@ class SaxoClient:
 
         try:
             logger.info(f"Accepting disclaimer {disclaimer_id}")
-            response = requests.put(
+            response = request(
+                "PUT",
                 f"{self.base_url}{endpoint}",
                 headers=headers,
                 timeout=self.timeout,
@@ -488,7 +514,7 @@ class SaxoClient:
             logger.error(f"Disclaimer acceptance request failed: {str(e)}")
             return False
 
-    @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
+    @retryable(max_attempts=3, statuses=[429], backoff_factor=1.0, jitter_factor=0.2)
     def cancel_order(self, order_id: str) -> bool:
         """
         Cancel an order.
@@ -510,7 +536,8 @@ class SaxoClient:
 
         try:
             logger.info(f"Cancelling order {order_id}")
-            response = requests.delete(
+            response = request(
+                "DELETE",
                 f"{self.base_url}{endpoint}",
                 headers=headers,
                 timeout=self.timeout,
