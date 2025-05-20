@@ -67,21 +67,65 @@ jobs:
   integration-sim:
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 15        # Sim API に遅延があってもタイムアウトで fail
     env:
+      SIM_CLIENT_ID: ${{ secrets.SIM_CLIENT_ID }}
+      SIM_CLIENT_SECRET: ${{ secrets.SIM_CLIENT_SECRET }}
       SIM_ACCOUNT_KEY: ${{ secrets.SIM_ACCOUNT_KEY }}
       SIM_REFRESH_TOKEN: ${{ secrets.SIM_REFRESH_TOKEN }}
+      USE_TRADE_V3: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install & run canary
+        with: { python-version: "3.12" }
+      - name: Set up Docker Buildx (installs docker compose v2)
+        uses: docker/setup-buildx-action@v3
+      - name: Install deps
         run: |
           pip install poetry
           poetry install --no-root
-          poetry run pytest tests/integration/test_sim_canary.py -q
-      - name: Upload canary logs
-        uses: actions/upload-artifact@v4
+      - name: Show which secret is missing (debug)
+        run: |
+          for v in SIM_CLIENT_ID SIM_CLIENT_SECRET SIM_ACCOUNT_KEY SIM_REFRESH_TOKEN; do
+            if [ -z "${!v}" ]; then
+              echo "::warning::$v is NOT set"
+            else
+              echo "$v looks set (length=${#v})"
+            fi
+          done
+      - name: Debug – show secret lengths (masked)
+        run: |
+          for v in SIM_CLIENT_ID SIM_CLIENT_SECRET SIM_ACCOUNT_KEY SIM_REFRESH_TOKEN; do
+            len=${#v}
+            echo "::notice title=$v::length=${#v}"
+          done
+      - name: Verify SIM secrets
+        shell: bash
+        run: |
+          for v in SIM_CLIENT_ID SIM_CLIENT_SECRET SIM_ACCOUNT_KEY SIM_REFRESH_TOKEN; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::$v is not set or empty"
+              exit 1
+            fi
+          done
+      - name: Spin up stack
+        run: |
+          docker compose -f docker/docker-compose.sim.yml up -d
+          # healthz が上がるまで最大 30 秒待機
+          for i in {1..30}; do
+            curl -fs http://localhost:8000/healthz && break
+            sleep 1
+          done
+      - name: Run canary trade & assert Filled
+        run: |
+          poetry run pytest tests/integration/test_sim_canary.py -q \
+            --wait-filled=60
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          docker compose -f docker/docker-compose.sim.yml logs > logs/compose.log
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: sim-canary-logs
           path: logs/
