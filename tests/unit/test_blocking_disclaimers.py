@@ -36,11 +36,11 @@ class TestBlockingDisclaimers:
             if key in os.environ:
                 del os.environ[key]
 
+    @patch("src.core.saxo_client.request")
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
     @patch("src.core.saxo_client.SaxoClient._accept_disclaimer")
-    @patch("requests.post")
     def test_place_order_with_disclaimers(
-        self, mock_post: MagicMock, mock_accept: MagicMock, mock_precheck: MagicMock
+        self, mock_accept: MagicMock, mock_precheck: MagicMock, mock_request: MagicMock
     ) -> None:
         """Test order placement with disclaimers: precheck → disclaimers → accept → precheck OK → order sent."""
         mock_precheck.side_effect = [
@@ -53,7 +53,7 @@ class TestBlockingDisclaimers:
         mock_response = MagicMock()
         mock_response.status_code = 201
         mock_response.json.return_value = {"OrderId": "123456"}
-        mock_post.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client.place_order(
             instrument="EURUSD", order_type="Market", side="Buy", amount=1000
@@ -64,12 +64,12 @@ class TestBlockingDisclaimers:
         assert mock_accept.call_count == 2  # nosec: B101 # pytest assertion
         mock_accept.assert_any_call("disclaimer1")
         mock_accept.assert_any_call("disclaimer2")
-        mock_post.assert_called_once()
+        mock_request.assert_called_once()
 
+    @patch("src.core.saxo_client.request")
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
-    @patch("requests.post")
     def test_place_order_without_disclaimers(
-        self, mock_post: MagicMock, mock_precheck: MagicMock
+        self, mock_precheck: MagicMock, mock_request: MagicMock
     ) -> None:
         """Test order placement without disclaimers: precheck OK first time → order sent directly."""
         mock_precheck.return_value = {"PreCheckResult": "OK"}
@@ -77,7 +77,7 @@ class TestBlockingDisclaimers:
         mock_response = MagicMock()
         mock_response.status_code = 201
         mock_response.json.return_value = {"OrderId": "123456"}
-        mock_post.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client.place_order(
             instrument="EURUSD", order_type="Market", side="Buy", amount=1000
@@ -85,7 +85,7 @@ class TestBlockingDisclaimers:
 
         assert result == {"OrderId": "123456"}  # nosec: B101 # pytest assertion
         mock_precheck.assert_called_once()
-        mock_post.assert_called_once()
+        mock_request.assert_called_once()
 
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
     @patch("src.core.saxo_client.SaxoClient._accept_disclaimer")
@@ -107,9 +107,9 @@ class TestBlockingDisclaimers:
 
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
     @patch("src.core.saxo_client.SaxoClient._accept_disclaimer")
-    @patch("requests.post")
+    @patch("src.core.saxo_client.request")
     def test_place_order_persistent_disclaimers(
-        self, mock_post: MagicMock, mock_accept: MagicMock, mock_precheck: MagicMock
+        self, mock_request: MagicMock, mock_accept: MagicMock, mock_precheck: MagicMock
     ) -> None:
         """Test order placement failure due to persistent disclaimers after acceptance."""
         mock_precheck.side_effect = [
@@ -126,13 +126,13 @@ class TestBlockingDisclaimers:
         assert result is None  # nosec: B101 # pytest assertion
         assert mock_precheck.call_count == 2  # nosec: B101 # pytest assertion
         mock_accept.assert_called_once_with("disclaimer1")
-        mock_post.assert_not_called()
+        mock_request.assert_not_called()
 
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
     @patch("src.core.saxo_client.SaxoClient._accept_disclaimer")
-    @patch("requests.post")
+    @patch("src.core.saxo_client.request")
     def test_place_order_retry_on_transient_error(
-        self, mock_post: MagicMock, mock_accept: MagicMock, mock_precheck: MagicMock
+        self, mock_request: MagicMock, mock_accept: MagicMock, mock_precheck: MagicMock
     ) -> None:
         """Test retry logic for transient errors (5xx/429) on disclaimer acceptance."""
         mock_precheck.side_effect = [
@@ -148,7 +148,7 @@ class TestBlockingDisclaimers:
         mock_response = MagicMock()
         mock_response.status_code = 201
         mock_response.json.return_value = {"OrderId": "123456"}
-        mock_post.return_value = mock_response
+        mock_request.return_value = mock_response
 
         with patch("time.sleep"):
             result = self.client.place_order(
@@ -158,13 +158,13 @@ class TestBlockingDisclaimers:
         assert result == {"OrderId": "123456"}  # nosec: B101 # pytest assertion
         assert mock_precheck.call_count == 2  # nosec: B101 # pytest assertion
         assert mock_accept.call_count == 2  # nosec: B101 # pytest assertion
-        mock_post.assert_called_once()
+        mock_request.assert_called_once()
 
     @patch("src.core.saxo_client.SaxoClient._handle_blocking_disclaimers")
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
-    @patch("requests.post")
+    @patch("src.core.saxo_client.request")
     def test_place_order_with_handle_blocking_disclaimers(
-        self, mock_post: MagicMock, mock_precheck: MagicMock, mock_handle: MagicMock
+        self, mock_request: MagicMock, mock_precheck: MagicMock, mock_handle: MagicMock
     ) -> None:
         """Test that place_order uses _handle_blocking_disclaimers method."""
         precheck_result = {"BlockingDisclaimers": [{"Id": "disclaimer1"}]}
@@ -175,7 +175,7 @@ class TestBlockingDisclaimers:
         mock_response = MagicMock()
         mock_response.status_code = 201
         mock_response.json.return_value = {"OrderId": "123456"}
-        mock_post.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client.place_order(
             instrument="EURUSD", order_type="Market", side="Buy", amount=1000
@@ -184,7 +184,7 @@ class TestBlockingDisclaimers:
         assert result == {"OrderId": "123456"}  # nosec: B101 # pytest assertion
         mock_precheck.assert_called_once()
         mock_handle.assert_called_once_with(precheck_result)
-        mock_post.assert_called_once()
+        mock_request.assert_called_once()
 
     @patch("src.core.saxo_client.SaxoClient._accept_disclaimer")
     def test_handle_blocking_disclaimers(self, mock_accept: MagicMock) -> None:
