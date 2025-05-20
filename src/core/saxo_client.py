@@ -31,7 +31,7 @@ logger = logging.getLogger("saxo")
 
 class SaxoClient:
     """Client for interacting with the Saxo Bank OpenAPI with trading capabilities."""
-    
+
     # Class-level Prometheus metrics
     _last_trade_status: ClassVar[Gauge] = None  # type: ignore # Will be initialized in __init__
 
@@ -689,7 +689,7 @@ class SaxoClient:
         if self.last_trade_status is None:
             logger.warning("Prometheus metrics not initialized, skipping metric update")
             return
-            
+
         current_status = status_data.get("Status", "Unknown")
 
         for status in ["Working", "Filled", "Executed", "Rejected", "Cancelled", "Unknown"]:
