@@ -66,24 +66,25 @@ class TestSaxoClient:
         client = SaxoClient(environment="live")
         assert client.use_trade_v3 is True  # nosec: B101 # pytest assertion
 
-    @patch("requests.post")
-    def test_authenticate_success(self, mock_post: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_authenticate_success(self, mock_request: MagicMock) -> None:
         """Test successful authentication."""
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "access_token": "test_token"
         }  # nosec: B105 # Testing value
-        mock_post.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client.authenticate()
 
         assert result is True  # nosec: B101 # pytest assertion
         assert self.client.access_token == "test_token"  # nosec: B101 # pytest assertion
-        mock_post.assert_called_once()
-        args, kwargs = mock_post.call_args
+        mock_request.assert_called_once()
+        args, kwargs = mock_request.call_args
+        assert args[0] == "POST"  # nosec: B101 # pytest assertion
         assert (
-            args[0] == "https://gateway.saxobank.com/openapi/token"
+            args[1] == "https://gateway.saxobank.com/openapi/token"
         )  # nosec: B101 # pytest assertion
         assert kwargs["data"]["grant_type"] == "refresh_token"  # nosec: B101 # pytest assertion
         assert kwargs["data"]["refresh_token"] == "test_token"  # nosec: B101 # pytest assertion
@@ -91,8 +92,8 @@ class TestSaxoClient:
         assert kwargs["data"]["client_secret"] == "test_secret"  # nosec: B101 # pytest assertion
         assert kwargs["timeout"] == 5  # nosec: B101 # pytest assertion
 
-    @patch("requests.post")
-    def test_authenticate_retry(self, mock_post: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_authenticate_retry(self, mock_request: MagicMock) -> None:
         """Test authentication retry on failure."""
         mock_error_response = MagicMock()
         mock_error_response.status_code = 503
@@ -102,7 +103,7 @@ class TestSaxoClient:
         mock_success_response.status_code = 200
         mock_success_response.json.return_value = {"access_token": "test_token"}
 
-        mock_post.side_effect = [
+        mock_request.side_effect = [
             requests.HTTPError("Service Unavailable"),
             mock_success_response,
         ]
@@ -112,24 +113,24 @@ class TestSaxoClient:
 
         assert result is True  # nosec: B101 # pytest assertion
         assert self.client.access_token == "test_token"  # nosec: B101 # pytest assertion
-        assert mock_post.call_count == 2  # nosec: B101 # pytest assertion
+        assert mock_request.call_count == 2  # nosec: B101 # pytest assertion
         assert mock_sleep.called  # nosec: B101 # pytest assertion
 
-    @patch("requests.post")
-    def test_authenticate_failure(self, mock_post: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_authenticate_failure(self, mock_request: MagicMock) -> None:
         """Test authentication failure."""
-        mock_post.side_effect = requests.RequestException("Connection error")
+        mock_request.side_effect = requests.RequestException("Connection error")
 
         result = self.client.authenticate()
 
         assert result is False  # nosec: B101 # pytest assertion
         assert self.client.access_token is None  # nosec: B101 # pytest assertion
 
-    @patch("requests.post")
-    def test_authenticate_http_error_without_response(self, mock_post: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_authenticate_http_error_without_response(self, mock_request: MagicMock) -> None:
         """Test authentication with HTTP error but no response attribute."""
         error = requests.HTTPError("HTTP Error")
-        mock_post.side_effect = error
+        mock_request.side_effect = error
 
         with pytest.raises(SaxoApiError) as excinfo:
             self.client.authenticate()
@@ -159,25 +160,26 @@ class TestSaxoClient:
         headers = self.client._get_headers()
         assert headers == {"Authorization": "Bearer test_token"}  # nosec: B101 # pytest assertion
 
-    @patch("requests.get")
-    def test_get_quote_success(self, mock_get: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_get_quote_success(self, mock_request: MagicMock) -> None:
         """Test successful quote retrieval."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"Quote": {"Ask": 1.1234, "Bid": 1.1232, "Mid": 1.1233}}
-        mock_get.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client.get_quote("EURUSD")
 
         assert result == {
             "Quote": {"Ask": 1.1234, "Bid": 1.1232, "Mid": 1.1233}
         }  # nosec: B101 # pytest assertion
-        mock_get.assert_called_once()
-        args, kwargs = mock_get.call_args
+        mock_request.assert_called_once()
+        args, kwargs = mock_request.call_args
+        assert args[0] == "GET"  # nosec: B101 # pytest assertion
         assert (
-            args[0] == "https://gateway.saxobank.com/openapi/trade/v1/prices/quotes"
+            args[1] == "https://gateway.saxobank.com/openapi/trade/v1/prices/quotes"
         )  # nosec: B101 # pytest assertion
         assert kwargs["params"]["AssetType"] == "FxSpot"  # nosec: B101 # pytest assertion
         assert kwargs["params"]["Uic"] == "EURUSD"  # nosec: B101 # pytest assertion
@@ -186,8 +188,8 @@ class TestSaxoClient:
         )  # nosec: B101 # pytest assertion
         assert kwargs["timeout"] == 5  # nosec: B101 # pytest assertion
 
-    @patch("requests.get")
-    def test_get_quote_retry(self, mock_get: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_get_quote_retry(self, mock_request: MagicMock) -> None:
         """Test quote retrieval retry on failure."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
@@ -201,7 +203,7 @@ class TestSaxoClient:
             "Quote": {"Ask": 1.1234, "Bid": 1.1232, "Mid": 1.1233}
         }
 
-        mock_get.side_effect = [
+        mock_request.side_effect = [
             requests.HTTPError("Too Many Requests"),
             mock_success_response,
         ]
@@ -212,7 +214,7 @@ class TestSaxoClient:
         assert result == {
             "Quote": {"Ask": 1.1234, "Bid": 1.1232, "Mid": 1.1233}
         }  # nosec: B101 # pytest assertion
-        assert mock_get.call_count == 2  # nosec: B101 # pytest assertion
+        assert mock_request.call_count == 2  # nosec: B101 # pytest assertion
         assert mock_sleep.called  # nosec: B101 # pytest assertion
 
     def test_get_quote_missing_credentials(self) -> None:
@@ -223,24 +225,24 @@ class TestSaxoClient:
 
         assert result is None  # nosec: B101 # pytest assertion
 
-    @patch("requests.get")
-    def test_get_quote_failure(self, mock_get: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_get_quote_failure(self, mock_request: MagicMock) -> None:
         """Test quote retrieval failure due to HTTP error."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
-        mock_get.side_effect = requests.RequestException("Connection error")
+        mock_request.side_effect = requests.RequestException("Connection error")
 
         result = self.client.get_quote("EURUSD")
 
         assert result is None  # nosec: B101 # pytest assertion
 
-    @patch("requests.get")
-    def test_get_quote_http_error_without_response(self, mock_get: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_get_quote_http_error_without_response(self, mock_request: MagicMock) -> None:
         """Test quote retrieval with HTTP error but no response attribute."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
         error = requests.HTTPError("HTTP Error")
-        mock_get.side_effect = error
+        mock_request.side_effect = error
 
         with pytest.raises(SaxoApiError) as excinfo:
             self.client.get_quote("EURUSD")
@@ -252,8 +254,8 @@ class TestSaxoClient:
         assert excinfo.value.response_body is None  # nosec: B101 # pytest assertion
 
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
-    @patch("requests.post")
-    def test_place_order_success(self, mock_post: MagicMock, mock_precheck: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_place_order_success(self, mock_request: MagicMock, mock_precheck: MagicMock) -> None:
         """Test successful order placement."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
         self.client.account_key = "test_account_key"
@@ -263,7 +265,7 @@ class TestSaxoClient:
         mock_response = MagicMock()
         mock_response.status_code = 201
         mock_response.json.return_value = {"OrderId": "123456"}
-        mock_post.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client.place_order(
             instrument="EURUSD", order_type="Market", side="Buy", amount=1000
@@ -271,10 +273,11 @@ class TestSaxoClient:
 
         assert result == {"OrderId": "123456"}  # nosec: B101 # pytest assertion
         mock_precheck.assert_called_once()
-        mock_post.assert_called_once()
-        args, kwargs = mock_post.call_args
+        mock_request.assert_called_once()
+        args, kwargs = mock_request.call_args
+        assert args[0] == "POST"  # nosec: B101 # pytest assertion
         assert (
-            args[0] == "https://gateway.saxobank.com/openapi/trade/v2/orders"
+            args[1] == "https://gateway.saxobank.com/openapi/trade/v2/orders"
         )  # nosec: B101 # pytest assertion
         assert kwargs["json"]["AccountKey"] == "test_account_key"  # nosec: B101 # pytest assertion
         assert kwargs["json"]["AssetType"] == "FxSpot"  # nosec: B101 # pytest assertion
@@ -289,9 +292,9 @@ class TestSaxoClient:
 
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
     @patch("src.core.saxo_client.SaxoClient._accept_disclaimer")
-    @patch("requests.post")
+    @patch("src.core.saxo_client.request")
     def test_place_order_with_disclaimers(
-        self, mock_post: MagicMock, mock_accept: MagicMock, mock_precheck: MagicMock
+        self, mock_request: MagicMock, mock_accept: MagicMock, mock_precheck: MagicMock
     ) -> None:
         """Test order placement with disclaimers."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
@@ -307,7 +310,7 @@ class TestSaxoClient:
         mock_response = MagicMock()
         mock_response.status_code = 201
         mock_response.json.return_value = {"OrderId": "123456"}
-        mock_post.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client.place_order(
             instrument="EURUSD", order_type="Market", side="Buy", amount=1000
@@ -316,7 +319,7 @@ class TestSaxoClient:
         assert result == {"OrderId": "123456"}  # nosec: B101 # pytest assertion
         assert mock_precheck.call_count == 2  # nosec: B101 # pytest assertion
         mock_accept.assert_called_once_with("disclaimer1")
-        mock_post.assert_called_once()
+        mock_request.assert_called_once()
 
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
     def test_place_order_precheck_failure(self, mock_precheck: MagicMock) -> None:
@@ -364,8 +367,8 @@ class TestSaxoClient:
 
         assert result is None  # nosec: B101 # pytest assertion
 
-    @patch("requests.post")
-    def test_place_order_http_error_without_response(self, mock_post: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_place_order_http_error_without_response(self, mock_request: MagicMock) -> None:
         """Test order placement with HTTP error but no response attribute."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
         self.client.account_key = "test_account_key"
@@ -374,7 +377,7 @@ class TestSaxoClient:
             mock_precheck.return_value = {"PreCheckResult": "OK"}
 
             error = requests.HTTPError("HTTP Error")
-            mock_post.side_effect = error
+            mock_request.side_effect = error
 
             with pytest.raises(SaxoApiError) as excinfo:
                 self.client.place_order(
@@ -385,9 +388,9 @@ class TestSaxoClient:
             assert excinfo.value.status_code is None  # nosec: B101 # pytest assertion
             assert excinfo.value.response_body is None  # nosec: B101 # pytest assertion
 
-    @patch("requests.post")
+    @patch("src.core.saxo_client.request")
     @patch("src.core.saxo_client.SaxoClient.get_quote")
-    def test_precheck_order_success(self, mock_get_quote: MagicMock, mock_post: MagicMock) -> None:
+    def test_precheck_order_success(self, mock_get_quote: MagicMock, mock_request: MagicMock) -> None:
         """Test successful order precheck."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
         self.client.account_key = "test_account_key"
@@ -397,17 +400,18 @@ class TestSaxoClient:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"PreCheckResult": "OK"}
-        mock_post.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client._precheck_order(
             instrument="EURUSD", order_type="Market", side="Buy", amount=1000
         )
 
         assert result == {"PreCheckResult": "OK"}  # nosec: B101 # pytest assertion
-        mock_post.assert_called_once()
-        args, kwargs = mock_post.call_args
+        mock_request.assert_called_once()
+        args, kwargs = mock_request.call_args
+        assert args[0] == "POST"  # nosec: B101 # pytest assertion
         assert (
-            args[0] == "https://gateway.saxobank.com/openapi/trade/v2/orders/precheck"
+            args[1] == "https://gateway.saxobank.com/openapi/trade/v2/orders/precheck"
         )  # nosec: B101 # pytest assertion
         assert kwargs["json"]["AccountKey"] == "test_account_key"  # nosec: B101 # pytest assertion
         assert kwargs["json"]["AssetType"] == "FxSpot"  # nosec: B101 # pytest assertion
@@ -420,10 +424,10 @@ class TestSaxoClient:
         )  # nosec: B101 # pytest assertion
         assert kwargs["timeout"] == 5  # nosec: B101 # pytest assertion
 
-    @patch("requests.post")
+    @patch("src.core.saxo_client.request")
     @patch("src.core.saxo_client.SaxoClient.get_quote")
     def test_precheck_order_with_price(
-        self, mock_get_quote: MagicMock, mock_post: MagicMock
+        self, mock_get_quote: MagicMock, mock_request: MagicMock
     ) -> None:
         """Test order precheck with price for limit order."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
@@ -434,27 +438,27 @@ class TestSaxoClient:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"PreCheckResult": "OK"}
-        mock_post.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client._precheck_order(
             instrument="EURUSD", order_type="Limit", side="Buy", amount=1000, price=1.1234
         )
 
         assert result == {"PreCheckResult": "OK"}  # nosec: B101 # pytest assertion
-        mock_post.assert_called_once()
-        args, kwargs = mock_post.call_args
+        mock_request.assert_called_once()
+        args, kwargs = mock_request.call_args
         assert kwargs["json"]["Price"] == "1.1234"  # nosec: B101 # pytest assertion
 
-    @patch("requests.post")
+    @patch("src.core.saxo_client.request")
     @patch("src.core.saxo_client.SaxoClient.get_quote")
-    def test_precheck_order_failure(self, mock_get_quote: MagicMock, mock_post: MagicMock) -> None:
+    def test_precheck_order_failure(self, mock_get_quote: MagicMock, mock_request: MagicMock) -> None:
         """Test order precheck failure due to HTTP error."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
         self.client.account_key = "test_account_key"
 
         mock_get_quote.return_value = {"Quote": {"Ask": 1.1235, "Bid": 1.1225}}
 
-        mock_post.side_effect = requests.RequestException("Connection error")
+        mock_request.side_effect = requests.RequestException("Connection error")
 
         result = self.client._precheck_order(
             instrument="EURUSD", order_type="Market", side="Buy", amount=1000
@@ -462,10 +466,10 @@ class TestSaxoClient:
 
         assert result is None  # nosec: B101 # pytest assertion
 
-    @patch("requests.post")
+    @patch("src.core.saxo_client.request")
     @patch("src.core.saxo_client.SaxoClient.get_quote")
     def test_precheck_order_http_error_without_response(
-        self, mock_get_quote: MagicMock, mock_post: MagicMock
+        self, mock_get_quote: MagicMock, mock_request: MagicMock
     ) -> None:
         """Test order precheck with HTTP error but no response attribute."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
@@ -474,7 +478,7 @@ class TestSaxoClient:
         mock_get_quote.return_value = {"Quote": {"Ask": 1.1235, "Bid": 1.1225}}
 
         error = requests.HTTPError("HTTP Error")
-        mock_post.side_effect = error
+        mock_request.side_effect = error
 
         with pytest.raises(SaxoApiError) as excinfo:
             self.client._precheck_order(
@@ -485,22 +489,23 @@ class TestSaxoClient:
         assert excinfo.value.status_code is None  # nosec: B101 # pytest assertion
         assert excinfo.value.response_body is None  # nosec: B101 # pytest assertion
 
-    @patch("requests.put")
-    def test_accept_disclaimer_success(self, mock_put: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_accept_disclaimer_success(self, mock_request: MagicMock) -> None:
         """Test successful disclaimer acceptance."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_put.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client._accept_disclaimer("disclaimer1")
 
         assert result is True  # nosec: B101 # pytest assertion
-        mock_put.assert_called_once()
-        args, kwargs = mock_put.call_args
+        mock_request.assert_called_once()
+        args, kwargs = mock_request.call_args
+        assert args[0] == "PUT"  # nosec: B101 # pytest assertion
         assert (
-            args[0]
+            args[1]
             == "https://gateway.saxobank.com/openapi/trade/v1/disclaimers/disclaimer1/accept"
         )  # nosec: B101 # pytest assertion
         assert (
@@ -508,24 +513,24 @@ class TestSaxoClient:
         )  # nosec: B101 # pytest assertion
         assert kwargs["timeout"] == 5  # nosec: B101 # pytest assertion
 
-    @patch("requests.put")
-    def test_accept_disclaimer_failure(self, mock_put: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_accept_disclaimer_failure(self, mock_request: MagicMock) -> None:
         """Test disclaimer acceptance failure due to HTTP error."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
-        mock_put.side_effect = requests.RequestException("Connection error")
+        mock_request.side_effect = requests.RequestException("Connection error")
 
         result = self.client._accept_disclaimer("disclaimer1")
 
         assert result is False  # nosec: B101 # pytest assertion
 
-    @patch("requests.put")
-    def test_accept_disclaimer_http_error_without_response(self, mock_put: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_accept_disclaimer_http_error_without_response(self, mock_request: MagicMock) -> None:
         """Test disclaimer acceptance with HTTP error but no response attribute."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
         error = requests.HTTPError("HTTP Error")
-        mock_put.side_effect = error
+        mock_request.side_effect = error
 
         with pytest.raises(SaxoApiError) as excinfo:
             self.client._accept_disclaimer("disclaimer1")
@@ -544,30 +549,31 @@ class TestSaxoClient:
 
         assert result is False  # nosec: B101 # pytest assertion
 
-    @patch("requests.delete")
-    def test_cancel_order_success(self, mock_delete: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_cancel_order_success(self, mock_request: MagicMock) -> None:
         """Test successful order cancellation."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_delete.return_value = mock_response
+        mock_request.return_value = mock_response
 
         result = self.client.cancel_order("123456")
 
         assert result is True  # nosec: B101 # pytest assertion
-        mock_delete.assert_called_once()
-        args, kwargs = mock_delete.call_args
+        mock_request.assert_called_once()
+        args, kwargs = mock_request.call_args
+        assert args[0] == "DELETE"  # nosec: B101 # pytest assertion
         assert (
-            args[0] == "https://gateway.saxobank.com/openapi/trade/v2/orders/123456"
+            args[1] == "https://gateway.saxobank.com/openapi/trade/v2/orders/123456"
         )  # nosec: B101 # pytest assertion
         assert (
             kwargs["headers"]["Authorization"] == "Bearer test_token"
         )  # nosec: B101 # pytest assertion
         assert kwargs["timeout"] == 5  # nosec: B101 # pytest assertion
 
-    @patch("requests.delete")
-    def test_cancel_order_retry(self, mock_delete: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_cancel_order_retry(self, mock_request: MagicMock) -> None:
         """Test order cancellation retry on failure."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
@@ -578,7 +584,7 @@ class TestSaxoClient:
         mock_success_response = MagicMock()
         mock_success_response.status_code = 200
 
-        mock_delete.side_effect = [
+        mock_request.side_effect = [
             requests.HTTPError("Bad Gateway"),
             mock_success_response,
         ]
@@ -587,27 +593,27 @@ class TestSaxoClient:
             result = self.client.cancel_order("123456")
 
         assert result is True  # nosec: B101 # pytest assertion
-        assert mock_delete.call_count == 2  # nosec: B101 # pytest assertion
+        assert mock_request.call_count == 2  # nosec: B101 # pytest assertion
         assert mock_sleep.called  # nosec: B101 # pytest assertion
 
-    @patch("requests.delete")
-    def test_cancel_order_failure(self, mock_delete: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_cancel_order_failure(self, mock_request: MagicMock) -> None:
         """Test order cancellation failure due to HTTP error."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
-        mock_delete.side_effect = requests.RequestException("Connection error")
+        mock_request.side_effect = requests.RequestException("Connection error")
 
         result = self.client.cancel_order("123456")
 
         assert result is False  # nosec: B101 # pytest assertion
 
-    @patch("requests.delete")
-    def test_cancel_order_http_error_without_response(self, mock_delete: MagicMock) -> None:
+    @patch("src.core.saxo_client.request")
+    def test_cancel_order_http_error_without_response(self, mock_request: MagicMock) -> None:
         """Test order cancellation with HTTP error but no response attribute."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
 
         error = requests.HTTPError("HTTP Error")
-        mock_delete.side_effect = error
+        mock_request.side_effect = error
 
         with pytest.raises(SaxoApiError) as excinfo:
             self.client.cancel_order("123456")
@@ -633,7 +639,7 @@ class TestSaxoClient:
         client.access_token = "test_token"  # nosec: B105 # Testing value
         client.account_key = "test_account_key"
 
-        with patch("requests.post") as mock_post, patch(
+        with patch("src.core.saxo_client.request") as mock_request, patch(
             "src.core.saxo_client.SaxoClient.get_quote"
         ) as mock_get_quote:
             mock_get_quote.return_value = {"Quote": {"Ask": 1.1235, "Bid": 1.1225}}
@@ -641,15 +647,16 @@ class TestSaxoClient:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {"PreCheckResult": "OK"}
-            mock_post.return_value = mock_response
+            mock_request.return_value = mock_response
 
             client._precheck_order(
                 instrument="EURUSD", order_type="Market", side="Buy", amount=1000
             )
 
-            args, kwargs = mock_post.call_args
+            args, kwargs = mock_request.call_args
+            assert args[0] == "POST"  # nosec: B101 # pytest assertion
             assert (
-                args[0] == "https://gateway.saxobank.com/openapi/trade/v3/orders/precheck"
+                args[1] == "https://gateway.saxobank.com/openapi/trade/v3/orders/precheck"
             )  # nosec: B101 # pytest assertion
 
     @patch("src.core.saxo_client.SaxoClient._precheck_order")
