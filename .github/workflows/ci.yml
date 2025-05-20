@@ -91,10 +91,20 @@ jobs:
               echo "$v looks set (length=${#v})"
             fi
           done
-      - name: Verify SIM secrets
+      - name: Debug – show secret lengths (masked)
         run: |
           for v in SIM_CLIENT_ID SIM_CLIENT_SECRET SIM_ACCOUNT_KEY SIM_REFRESH_TOKEN; do
-           [ -z "${!v}" ] && echo "$v not set" && exit 1
+            len=${#v}
+            echo "::notice title=$v::length=${#v}"
+          done
+      - name: Verify SIM secrets
+        shell: bash
+        run: |
+          for v in SIM_CLIENT_ID SIM_CLIENT_SECRET SIM_ACCOUNT_KEY SIM_REFRESH_TOKEN; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::$v is not set or empty"
+              exit 1
+            fi
           done
       - name: Spin up stack
         run: |
