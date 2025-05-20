@@ -1,49 +1,64 @@
 version: "3.9"
+
+x-tag: &image-tag "${TAG:-latest}"
+x-common: &common-env
+  env_file: .env.sim
+  restart: unless-stopped
+  networks: [bot_net]
+
 services:
   parent_core:
-    image: ghcr.io/ikoma30/saxo-bot-parent:${TAG}
-    env_file: .env.sim
-    cpus: "0-1"
+    image: ghcr.io/ikoma30/saxo-bot-parent:*image-tag
+    <<: *common-env
+    cpuset: "0-1"          # ← Spec §4.15
     deploy:
       resources:
         limits:
-          memory: "1500M"
-    networks: [bot_net]
-    restart: unless-stopped
+          memory: 1500M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
 
   main_bot_core:
-    image: ghcr.io/ikoma30/saxo-bot-main:${TAG}
-    env_file: .env.sim
-    cpus: "2"
+    image: ghcr.io/ikoma30/saxo-bot-main:*image-tag
+    <<: *common-env
+    cpuset: "2"            # ← Spec §4.15 / Main-BOT §8.10:contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}
     deploy:
       resources:
         limits:
-          memory: "1500M"
-    networks: [bot_net]
-    depends_on: [parent_core]
-    restart: unless-stopped
+          memory: 1500M
+    depends_on:
+      parent_core:
+        condition: service_healthy
 
   micro_rev_core:
-    image: ghcr.io/ikoma30/saxo-bot-microrev:${TAG}
-    env_file: .env.sim
-    cpus: "3"
+    image: ghcr.io/ikoma30/saxo-bot-microrev:*image-tag
+    <<: *common-env
+    cpuset: "3"            # ← Spec §4.15
     deploy:
       resources:
         limits:
-          memory: "1500M"
-    networks: [bot_net]
-    depends_on: [parent_core]
-    restart: unless-stopped
+          memory: 1500M
+    depends_on:
+      parent_core:
+        condition: service_healthy
 
   prometheus:
     image: prom/prometheus:v2.51
-    volumes: [ "./prometheus.yml:/etc/prometheus/prometheus.yml:ro" ]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    cpuset: "1"            # ← prom+grafana 同芯 (§4.15)
     networks: [mon_net]
+    ports: ["9090:9090"]
     restart: unless-stopped
 
   grafana:
     image: grafana/grafana:10.4.2
+    cpuset: "1"
     networks: [mon_net]
+    ports: ["3000:3000"]
     restart: unless-stopped
 
 networks:
