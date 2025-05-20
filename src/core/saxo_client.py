@@ -165,10 +165,10 @@ class SaxoClient:
     def _handle_blocking_disclaimers(
         self,
         precheck_resp: dict[str, Any],
-        instrument: str = None,
-        order_type: str = None,
-        side: str = None,
-        amount: int | float | Decimal = None,
+        instrument: str | None = None,
+        order_type: str | None = None,
+        side: str | None = None,
+        amount: int | float | Decimal | None = None,
         price: float | Decimal | None = None,
     ) -> dict[str, Any] | None:
         """
