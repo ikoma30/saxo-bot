@@ -16,7 +16,7 @@ logger = logging.getLogger("test")
 
 
 @pytest.mark.sim
-def test_main_bot_canary() -> None:
+def test_main_bot_canary(request: pytest.FixtureRequest) -> None:
     """
     0.01-lot SIM canary test for Main BOT.
 
@@ -55,6 +55,17 @@ def test_main_bot_canary() -> None:
 
         if order_result and "OrderId" in order_result:
             fill_count += 1
+            
+            wait_filled_seconds = int(request.config.getoption("--wait-filled", "0"))
+            if wait_filled_seconds > 0:
+                order_id = order_result["OrderId"]
+                filled_status = client.wait_for_order_status(
+                    order_id,
+                    target_status=["Filled", "Executed"],
+                    max_wait_seconds=wait_filled_seconds
+                )
+                if filled_status is None:
+                    logger.warning(f"Order {order_id} did not reach Filled/Executed status within timeout")
 
             if i % 3 == 0:  # Simulate some losses
                 losses.append(0.5)  # Simulated loss
@@ -83,7 +94,7 @@ def test_main_bot_canary() -> None:
 
 
 @pytest.mark.sim
-def test_micro_rev_bot_canary() -> None:
+def test_micro_rev_bot_canary(request: pytest.FixtureRequest) -> None:
     """
     0.01-lot SIM canary test for Micro-Rev BOT.
 
@@ -122,6 +133,17 @@ def test_micro_rev_bot_canary() -> None:
 
         if order_result and "OrderId" in order_result:
             fill_count += 1
+            
+            wait_filled_seconds = int(request.config.getoption("--wait-filled", "0"))
+            if wait_filled_seconds > 0:
+                order_id = order_result["OrderId"]
+                filled_status = client.wait_for_order_status(
+                    order_id,
+                    target_status=["Filled", "Executed"],
+                    max_wait_seconds=wait_filled_seconds
+                )
+                if filled_status is None:
+                    logger.warning(f"Order {order_id} did not reach Filled/Executed status within timeout")
 
             if i % 3 == 0:  # Simulate some losses
                 losses.append(0.5)  # Simulated loss
