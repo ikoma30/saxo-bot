@@ -82,6 +82,15 @@ jobs:
         run: |
           pip install poetry
           poetry install --no-root
+      - name: Show which secret is missing (debug)
+        run: |
+          for v in SIM_CLIENT_ID SIM_CLIENT_SECRET SIM_ACCOUNT_KEY SIM_REFRESH_TOKEN; do
+            if [ -z "${!v}" ]; then
+              echo "::warning::$v is NOT set"
+            else
+              echo "$v looks set (length=${#v})"
+            fi
+          done
       - name: Verify SIM secrets
         run: |
           for v in SIM_CLIENT_ID SIM_CLIENT_SECRET SIM_ACCOUNT_KEY SIM_REFRESH_TOKEN; do
