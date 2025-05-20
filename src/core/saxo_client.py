@@ -12,6 +12,7 @@ from decimal import Decimal
 from typing import Any
 
 import requests
+from prometheus_client import Gauge
 
 from src.common.exceptions import SaxoApiError
 from src.common.http_utils import request
@@ -52,6 +53,15 @@ class SaxoClient:
         self.token_expiry: str | None = None
         self.use_trade_v3 = os.environ.get("USE_TRADE_V3", "false").lower() == "true"
         self.timeout = 5  # 5 second timeout as per requirements
+
+        # Initialize Prometheus metrics
+        if not hasattr(SaxoClient, "_last_trade_status"):
+            SaxoClient._last_trade_status = Gauge(
+                "last_trade_status",
+                "Last trade status (1=status active, 0=status inactive)",
+                ["env", "status"]
+            )
+        self.last_trade_status = SaxoClient._last_trade_status
 
         # Initialize guard systems
         self.slippage_guard = SlippageGuard()
@@ -561,3 +571,108 @@ class SaxoClient:
         except requests.RequestException as e:
             logger.error(f"Order cancellation request failed: {str(e)}")
             return False
+    @retryable(max_attempts=3, statuses=[429], backoff_factor=1.0, jitter_factor=0.2)
+    def get_order_status(self, order_id: str) -> dict[str, Any] | None:
+        """
+        Get the status of an order.
+
+        Args:
+            order_id: The ID of the order to check
+
+        Returns:
+            Optional[dict[str, Any]]: Order status information or None if the request failed
+        """
+        if not self.access_token:
+            logger.error("Not authenticated")
+            return None
+
+        headers = self._get_headers()
+
+        trade_version = "v3" if self.use_trade_v3 else "v2"
+        endpoint = f"/trade/{trade_version}/orders/{order_id}/details"
+
+        try:
+            logger.info(f"Getting status for order {order_id}")
+            response = request(
+                "GET",
+                f"{self.base_url}{endpoint}",
+                headers=headers,
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            status_data: dict[str, Any] = response.json()
+            logger.info(f"Successfully retrieved status for order {order_id}: {status_data.get('Status')}")
+            return status_data
+        except requests.HTTPError as e:
+            if hasattr(e, "response") and e.response is not None:
+                logger.error(f"Failed to get order status for {order_id} with status {e.response.status_code}")
+                raise SaxoApiError(
+                    f"Failed to get order status for {order_id}", e.response.status_code, e.response.json()
+                ) from e
+            else:
+                logger.error(f"Failed to get order status for {order_id}: {str(e)}")
+                raise SaxoApiError(f"Failed to get order status for {order_id}", None, None) from e
+        except requests.RequestException as e:
+            logger.error(f"Order status request failed for {order_id}: {str(e)}")
+            return None
+
+    def wait_for_order_status(
+        self, order_id: str, target_status: str | list[str] = "Filled", max_wait_seconds: int = 60, poll_interval: int = 2
+    ) -> dict[str, Any] | None:
+        """
+        Poll for order status until it reaches the target status or timeout.
+
+        Args:
+            order_id: The ID of the order to check
+            target_status: The status to wait for (or list of statuses)
+            max_wait_seconds: Maximum time to wait in seconds
+            poll_interval: Time between polls in seconds
+
+        Returns:
+            Optional[dict[str, Any]]: Order status information or None if the target status wasn't reached
+        """
+        if isinstance(target_status, str):
+            target_status = [target_status]
+
+        logger.info(f"Waiting for order {order_id} to reach status: {','.join(target_status)}")
+        end_time = time.time() + max_wait_seconds
+        last_status = None
+
+        while time.time() < end_time:
+            status_data = self.get_order_status(order_id)
+            if status_data is None:
+                logger.error(f"Failed to get status for order {order_id}")
+                time.sleep(poll_interval)
+                continue
+
+            current_status = status_data.get("Status", "Unknown")
+            if current_status != last_status:
+                logger.info(f"Order {order_id} status: {current_status}")
+                last_status = current_status
+
+            if current_status in target_status or "status" in status_data and status_data["status"] in target_status:
+                self._update_trade_metrics(status_data)
+                return status_data
+
+            time.sleep(poll_interval)
+
+        logger.warning(f"Timed out waiting for order {order_id} to reach status: {','.join(target_status)}")
+        return None
+
+    def _update_trade_metrics(self, status_data: dict[str, Any]) -> None:
+        """
+        Update Prometheus metrics based on order status.
+
+        Args:
+            status_data: Order status data from the API
+        """
+        current_status = status_data.get("Status", "Unknown")
+        
+        for status in ["Working", "Filled", "Executed", "Rejected", "Cancelled", "Unknown"]:
+            self.last_trade_status.labels(env=self.environment, status=status).set(0)
+        
+        if current_status in ["Filled", "Executed"]:
+            logger.info("Order filled/executed, updating Prometheus metric")
+            self.last_trade_status.labels(env=self.environment, status="Filled").set(1)
+        else:
+            self.last_trade_status.labels(env=self.environment, status=current_status).set(1)
