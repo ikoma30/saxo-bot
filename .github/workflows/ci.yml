@@ -79,8 +79,7 @@ jobs:
         run: |
           pip install poetry
           poetry install --no-root
-          poetry run pytest tests/integration/test_sim_canary.py \
-            --maxwait=60
+          poetry run pytest tests/integration/test_sim_canary.py -q
       - name: Upload canary logs
         uses: actions/upload-artifact@v4
         with:
