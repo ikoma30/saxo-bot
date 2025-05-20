@@ -162,6 +162,60 @@ class SaxoClient:
             return None
 
     @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
+    def _handle_blocking_disclaimers(
+        self,
+        precheck_resp: dict[str, Any],
+        instrument: str | None = None,
+        order_type: str | None = None,
+        side: str | None = None,
+        amount: int | float | Decimal | None = None,
+        price: float | Decimal | None = None,
+    ) -> dict[str, Any] | None:
+        """
+        Handle blocking disclaimers by accepting them and re-running the precheck.
+
+        Args:
+            precheck_resp: The precheck response containing BlockingDisclaimers
+            instrument: The instrument identifier (e.g., "EURUSD")
+            order_type: The type of order (e.g., "Market", "Limit")
+            side: The side of the order ("Buy" or "Sell")
+            amount: The amount to trade
+            price: The price for limit orders (optional)
+
+        Returns:
+            Optional[dict[str, Any]]: The final precheck response after accepting disclaimers,
+                                     or None if the process failed
+        """
+        if not precheck_resp.get("BlockingDisclaimers"):
+            return precheck_resp
+
+        for disclaimer in precheck_resp.get("BlockingDisclaimers", []):
+            disclaimer_id = disclaimer.get("Id")
+            if not disclaimer_id:
+                logger.warning("Disclaimer without Id found, skipping")
+                continue
+
+            logger.info(f"Handling blocking disclaimer: {disclaimer_id}")
+            if not self._accept_disclaimer(disclaimer_id):
+                logger.error(f"Failed to accept disclaimer {disclaimer_id}")
+                return None
+
+        if instrument is None or order_type is None or side is None or amount is None:
+            return None
+
+        final_precheck = self._precheck_order(instrument, order_type, side, amount, price)
+        if not final_precheck:
+            logger.error("Order precheck failed after accepting disclaimers")
+            return None
+
+        # Check if there are still blocking disclaimers
+        if final_precheck.get("BlockingDisclaimers"):
+            logger.error("Blocking disclaimers still present after acceptance")
+            return None
+
+        return final_precheck
+
+    @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
     def place_order(
         self,
         instrument: str,
@@ -218,20 +272,20 @@ class SaxoClient:
             return {"OrderRejected": True, "Reason": "LatencyGuard: High API latency detected"}
 
         if precheck_result.get("BlockingDisclaimers"):
-            for disclaimer in precheck_result.get("BlockingDisclaimers", []):
-                disclaimer_id = disclaimer.get("Id")
-                if not disclaimer_id:
-                    continue
-
-                if not self._accept_disclaimer(disclaimer_id):
-                    logger.error(f"Failed to accept disclaimer {disclaimer_id}")
-                    return None
-
-            precheck_result = self._precheck_order(instrument, order_type, side, amount, price)
-
-            if not precheck_result:
-                logger.error("Order precheck failed after accepting disclaimers")
+            # Handle blocking disclaimers
+            if (
+                hasattr(self._handle_blocking_disclaimers, "__self__")
+                and self._handle_blocking_disclaimers.__self__ is self
+            ):
+                final_precheck = self._handle_blocking_disclaimers(
+                    precheck_result, instrument, order_type, side, amount, price
+                )
+            else:
+                final_precheck = self._handle_blocking_disclaimers(precheck_result)
+            if final_precheck is None:
                 return None
+
+            precheck_result = final_precheck
 
         order_data = {
             "AccountKey": self.account_key,
