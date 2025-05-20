@@ -390,7 +390,9 @@ class TestSaxoClient:
 
     @patch("src.core.saxo_client.request")
     @patch("src.core.saxo_client.SaxoClient.get_quote")
-    def test_precheck_order_success(self, mock_get_quote: MagicMock, mock_request: MagicMock) -> None:
+    def test_precheck_order_success(
+        self, mock_get_quote: MagicMock, mock_request: MagicMock
+    ) -> None:
         """Test successful order precheck."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
         self.client.account_key = "test_account_key"
@@ -451,7 +453,9 @@ class TestSaxoClient:
 
     @patch("src.core.saxo_client.request")
     @patch("src.core.saxo_client.SaxoClient.get_quote")
-    def test_precheck_order_failure(self, mock_get_quote: MagicMock, mock_request: MagicMock) -> None:
+    def test_precheck_order_failure(
+        self, mock_get_quote: MagicMock, mock_request: MagicMock
+    ) -> None:
         """Test order precheck failure due to HTTP error."""
         self.client.access_token = "test_token"  # nosec: B105 # Testing value
         self.client.account_key = "test_account_key"

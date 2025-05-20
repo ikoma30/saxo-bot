@@ -336,8 +336,10 @@ class SaxoClient:
                     if hasattr(e.response, "json"):
                         response_body = e.response.json()
                 except (ValueError, requests.exceptions.JSONDecodeError):
-                    response_body = {"error": e.response.text} if hasattr(e.response, "text") else None
-                
+                    response_body = (
+                        {"error": e.response.text} if hasattr(e.response, "text") else None
+                    )
+
                 raise SaxoApiError(
                     "Failed to place order", e.response.status_code, response_body
                 ) from e
