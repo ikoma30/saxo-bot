@@ -163,8 +163,13 @@ class SaxoClient:
 
     @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
     def _handle_blocking_disclaimers(
-        self, precheck_resp: dict[str, Any], instrument: str = None, order_type: str = None, 
-        side: str = None, amount: int | float | Decimal = None, price: float | Decimal | None = None
+        self,
+        precheck_resp: dict[str, Any],
+        instrument: str = None,
+        order_type: str = None,
+        side: str = None,
+        amount: int | float | Decimal = None,
+        price: float | Decimal | None = None,
     ) -> dict[str, Any] | None:
         """
         Handle blocking disclaimers by accepting them and re-running the precheck.
@@ -197,17 +202,17 @@ class SaxoClient:
 
         if instrument is None or order_type is None or side is None or amount is None:
             return None
-            
+
         final_precheck = self._precheck_order(instrument, order_type, side, amount, price)
         if not final_precheck:
             logger.error("Order precheck failed after accepting disclaimers")
             return None
-            
+
         # Check if there are still blocking disclaimers
         if final_precheck.get("BlockingDisclaimers"):
             logger.error("Blocking disclaimers still present after acceptance")
             return None
-            
+
         return final_precheck
 
     @retryable(max_attempts=3, statuses=[429, 502, 503, 504])
@@ -268,7 +273,10 @@ class SaxoClient:
 
         if precheck_result.get("BlockingDisclaimers"):
             # Handle blocking disclaimers
-            if hasattr(self._handle_blocking_disclaimers, "__self__") and self._handle_blocking_disclaimers.__self__ is self:
+            if (
+                hasattr(self._handle_blocking_disclaimers, "__self__")
+                and self._handle_blocking_disclaimers.__self__ is self
+            ):
                 final_precheck = self._handle_blocking_disclaimers(
                     precheck_result, instrument, order_type, side, amount, price
                 )
@@ -276,7 +284,7 @@ class SaxoClient:
                 final_precheck = self._handle_blocking_disclaimers(precheck_result)
             if final_precheck is None:
                 return None
-            
+
             precheck_result = final_precheck
 
         order_data = {
