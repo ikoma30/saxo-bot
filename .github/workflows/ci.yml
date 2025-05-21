@@ -128,10 +128,14 @@ jobs:
           done
       - name: Run canary trade & assert Filled
         run: |
+          # Get the container name with project prefix
+          CONTAINER_NAME=$(docker compose -f docker/docker-compose.sim.yml ps -q parent_core)
+          echo "Container name: $CONTAINER_NAME"
+          
           # Copy test files to parent_core container
-          docker cp tests/integration parent_core:/tests/
-          docker cp src parent_core:/src/
-          docker cp pyproject.toml parent_core:/
+          docker cp tests/integration $CONTAINER_NAME:/tests/
+          docker cp src $CONTAINER_NAME:/src/
+          docker cp pyproject.toml $CONTAINER_NAME:/
           
           # Install dependencies and run tests inside the container
           docker exec -e SIM_CLIENT_ID=${SIM_CLIENT_ID} \
@@ -139,7 +143,7 @@ jobs:
                      -e SIM_REFRESH_TOKEN=${SIM_REFRESH_TOKEN} \
                      -e SIM_ACCOUNT_KEY=${SIM_ACCOUNT_KEY} \
                      -e USE_TRADE_V3=true \
-                     parent_core bash -c "pip install pytest pytest-cov requests prometheus-client && \
+                     $CONTAINER_NAME bash -c "pip install pytest pytest-cov requests prometheus-client && \
                                          python -m pytest /tests/integration/test_sim_canary.py -q --wait-filled=60"
       - name: Collect logs on failure
         if: failure()
