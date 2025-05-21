@@ -629,7 +629,7 @@ class SaxoClient:
     def wait_for_order_status(
         self,
         order_id: str,
-        target_status: str | list[str] = "Filled",
+        target_status: str | list[str] = ["Filled", "Executed"],
         max_wait_seconds: int = 60,
         poll_interval: int = 2,
     ) -> dict[str, Any] | None:

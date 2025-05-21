@@ -473,6 +473,60 @@ class TestSaxoClient:
 
         assert result is not None  # nosec: B101 # pytest assertion
         assert result["Status"] == "Executed"  # nosec: B101 # pytest assertion
+        
+    @patch("time.sleep", return_value=None)
+    @patch("src.core.saxo_client.SaxoClient.get_order_status")
+    def test_wait_for_order_status_get_status_none(
+        self, mock_get_status: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """Test waiting for order status when get_order_status returns None."""
+        mock_get_status.return_value = None
+        
+        result = self.client.wait_for_order_status("123", target_status="Filled", max_wait_seconds=5)
+
+        assert result is None  # nosec: B101 # pytest assertion
+        assert mock_get_status.call_count > 1  # nosec: B101 # pytest assertion
+        
+    @patch("time.sleep", return_value=None)
+    @patch("src.core.saxo_client.SaxoClient.get_order_status")
+    def test_wait_for_order_status_timeout_with_status(
+        self, mock_get_status: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """Test waiting for order status when the order never reaches the target status."""
+        mock_get_status.return_value = {"Status": "Working"}
+        
+        result = self.client.wait_for_order_status(
+            "123", target_status="Filled", max_wait_seconds=5
+        )
+        
+        assert result is None  # nosec: B101 # pytest assertion
+        assert mock_get_status.call_count > 1  # nosec: B101 # pytest assertion
+        
+    @patch("time.sleep", return_value=None)
+    @patch("src.core.saxo_client.SaxoClient.get_order_status")
+    def test_wait_for_order_status_with_status_key(
+        self, mock_get_status: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """Test waiting for order status when the API returns status in lowercase key."""
+        mock_get_status.return_value = {"status": "Filled"}
+        
+        result = self.client.wait_for_order_status("123", target_status="Filled")
+        
+        assert result is not None  # nosec: B101 # pytest assertion
+        assert result["status"] == "Filled"  # nosec: B101 # pytest assertion
+        
+    @patch("time.sleep", return_value=None)
+    @patch("src.core.saxo_client.SaxoClient.get_order_status")
+    def test_wait_for_order_status_string_target(
+        self, mock_get_status: MagicMock, mock_sleep: MagicMock
+    ) -> None:
+        """Test waiting for order status with a string target instead of a list."""
+        mock_get_status.return_value = {"Status": "Filled"}
+        
+        result = self.client.wait_for_order_status("123", target_status="Filled")
+        
+        assert result is not None  # nosec: B101 # pytest assertion
+        assert result["Status"] == "Filled"  # nosec: B101 # pytest assertion
 
     def test_update_trade_metrics_filled(self) -> None:
         """Test updating trade metrics when an order is filled."""
@@ -486,6 +540,12 @@ class TestSaxoClient:
         self.client.last_trade_status.labels.assert_any_call(
             env=self.client.environment, status="Filled"
         )
+        
+    def test_update_trade_metrics_not_initialized(self) -> None:
+        """Test updating trade metrics when Prometheus metrics are not initialized."""
+        self.client.last_trade_status = None
+        
+        self.client._update_trade_metrics({"Status": "Filled"})
 
     def test_update_trade_metrics_executed(self) -> None:
         """Test updating trade metrics when an order is executed."""
