@@ -35,15 +35,15 @@ class SaxoApiError(Exception):
 class OrderPollingTimeoutError(Exception):
     """
     Raised when order polling times out without reaching a terminal status.
-    
+
     According to Parent Spec §7.2.3, this should be raised when order polling
     exceeds the maximum wait time without reaching a terminal status.
     """
-    
+
     def __init__(self, order_id: str, elapsed_time: float, last_status: str):
         """
         Initialize OrderPollingTimeoutError.
-        
+
         Args:
             order_id: The ID of the order that timed out
             elapsed_time: The time spent polling in seconds

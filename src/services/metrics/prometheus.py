@@ -8,15 +8,11 @@ from prometheus_client import Gauge, Summary
 logger = logging.getLogger(__name__)
 
 last_trade_status = Gauge(
-    "last_trade_status", 
-    "Status of the last trade (1=success, 0=failure)", 
-    ["status"]
+    "last_trade_status", "Status of the last trade (1=success, 0=failure)", ["status"]
 )
 
 order_poll_seconds = Summary(
-    "order_poll_seconds", 
-    "Time spent polling for order status in seconds", 
-    ["status"]
+    "order_poll_seconds", "Time spent polling for order status in seconds", ["status"]
 )
 
 

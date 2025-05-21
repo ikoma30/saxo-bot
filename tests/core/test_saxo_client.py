@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from src.common.exceptions import SaxoApiError
+from src.common.exceptions import OrderPollingTimeoutError, SaxoApiError
 from src.core.saxo_client import SaxoClient
 
 
@@ -428,7 +428,7 @@ class TestSaxoClient:
         assert result is None  # nosec: B101 # pytest assertion
 
     @patch("time.sleep", return_value=None)
-    @patch("time.time", side_effect=[0, 10, 20, 30])
+    @patch("time.time", side_effect=[0, 10, 20, 30, 40, 50, 60])
     @patch("src.core.saxo_client.SaxoClient.get_order_status")
     def test_wait_for_order_status_success(
         self, mock_get_status: MagicMock, mock_time: MagicMock, mock_sleep: MagicMock
@@ -444,7 +444,7 @@ class TestSaxoClient:
         assert mock_get_status.call_count == 2  # nosec: B101 # pytest assertion
 
     @patch("time.sleep", return_value=None)
-    @patch("time.time", side_effect=[0, 10, 20, 30, 40, 50, 60, 70])
+    @patch("time.time", side_effect=[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120])
     @patch("src.core.saxo_client.SaxoClient.get_order_status")
     def test_wait_for_order_status_timeout(
         self, mock_get_status: MagicMock, mock_time: MagicMock, mock_sleep: MagicMock
@@ -452,16 +452,16 @@ class TestSaxoClient:
         """Test waiting for order status with a timeout."""
         mock_get_status.return_value = {"Status": "Working"}
 
-        result = self.client.wait_for_order_status(
-            "123", target_status="Filled", max_wait_seconds=50
-        )
+        with pytest.raises(OrderPollingTimeoutError) as excinfo:
+            self.client.wait_for_order_status(
+                "123", target_status="Filled", max_wait_seconds=50
+            )
 
-        assert result is None  # nosec: B101 # pytest assertion
-
+        assert "Order 123 polling timed out" in str(excinfo.value)  # nosec: B101 # pytest assertion
         assert mock_get_status.call_count > 1  # nosec: B101 # pytest assertion
 
     @patch("time.sleep", return_value=None)
-    @patch("time.time", side_effect=[0, 10, 20, 30])
+    @patch("time.time", side_effect=[0, 10, 20, 30, 40, 50, 60])
     @patch("src.core.saxo_client.SaxoClient.get_order_status")
     def test_wait_for_order_status_multiple_targets(
         self, mock_get_status: MagicMock, mock_time: MagicMock, mock_sleep: MagicMock
@@ -482,11 +482,12 @@ class TestSaxoClient:
         """Test waiting for order status when get_order_status returns None."""
         mock_get_status.return_value = None
 
-        result = self.client.wait_for_order_status(
-            "123", target_status="Filled", max_wait_seconds=5
-        )
+        with pytest.raises(OrderPollingTimeoutError) as excinfo:
+            self.client.wait_for_order_status(
+                "123", target_status="Filled", max_wait_seconds=5
+            )
 
-        assert result is None  # nosec: B101 # pytest assertion
+        assert "Order 123 polling timed out" in str(excinfo.value)  # nosec: B101 # pytest assertion
         assert mock_get_status.call_count > 1  # nosec: B101 # pytest assertion
 
     @patch("time.sleep", return_value=None)
@@ -497,11 +498,13 @@ class TestSaxoClient:
         """Test waiting for order status when the order never reaches the target status."""
         mock_get_status.return_value = {"Status": "Working"}
 
-        result = self.client.wait_for_order_status(
-            "123", target_status="Filled", max_wait_seconds=5
-        )
+        with pytest.raises(OrderPollingTimeoutError) as excinfo:
+            self.client.wait_for_order_status(
+                "123", target_status="Filled", max_wait_seconds=5
+            )
 
-        assert result is None  # nosec: B101 # pytest assertion
+        assert "Order 123 polling timed out" in str(excinfo.value)  # nosec: B101 # pytest assertion
+        assert "Working" in str(excinfo.value)  # nosec: B101 # pytest assertion
         assert mock_get_status.call_count > 1  # nosec: B101 # pytest assertion
 
     @patch("time.sleep", return_value=None)

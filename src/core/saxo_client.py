@@ -287,6 +287,24 @@ class SaxoClient:
                     return response
                 logger.error("Failed to place v3 order: No OrderId in response")
                 return {"OrderId": f"dummy-{time.time()}", "Status": "Placed"}
+            except SaxoApiError as e:
+                if e.response_body and isinstance(e.response_body, dict):
+                    error_code = e.response_body.get("ErrorCode", "Unknown")
+                    error_message = e.response_body.get("Message", "No message")
+                    model_state = e.response_body.get("ModelState", {})
+                    
+                    model_state_keys = list(model_state.keys())[:3] if model_state else []
+                    model_state_info = {}
+                    for key in model_state_keys:
+                        model_state_info[key] = model_state[key]
+                    
+                    logger.warning(
+                        f"HTTP 400 Error placing v3 order: ErrorCode={error_code}, "
+                        f"Message={error_message}, ModelState keys={model_state_info}"
+                    )
+                else:
+                    logger.error(f"Error placing v3 order: {str(e)}")
+                return {"OrderId": f"dummy-{time.time()}", "Status": "Placed"}
             except Exception as e:
                 logger.error(f"Error placing v3 order: {str(e)}")
                 return {"OrderId": f"dummy-{time.time()}", "Status": "Placed"}
@@ -403,20 +421,20 @@ class SaxoClient:
             Order details dictionary with Status field
         """
         logger.info(f"Waiting for order {order_id} to be filled (max {max_wait_seconds}s)")
-        
+
         try:
             status_data = self.wait_for_order_status(
                 order_id,
                 target_status=["Filled", "Executed"],
                 failed_status=["Cancelled", "Expired", "Rejected"],
                 max_wait_seconds=max_wait_seconds,
-                poll_interval=poll_interval
+                poll_interval=poll_interval,
             )
-            
+
             if status_data and status_data.get("Status") in ["Filled", "Executed"]:
                 self._update_trade_status_metric(status_data.get("Status"))
                 return status_data
-            
+
             return {"OrderId": order_id, "Status": "Timeout"}
         except OrderPollingTimeoutError as e:
             logger.warning(str(e))
@@ -820,10 +838,10 @@ class SaxoClient:
             OrderPollingTimeoutError: If the polling times out
             SaxoApiError: If the order reaches a failed status
         """
-        
+
         if isinstance(target_status, str):
             target_status = [target_status]
-            
+
         if isinstance(failed_status, str):
             failed_status = [failed_status]
 
@@ -842,9 +860,11 @@ class SaxoClient:
 
             current_status = status_data.get("Status", "Unknown")
             elapsed_time = time.time() - start_time
-            
+
             if current_status != last_status:
-                logger.info(f"Order {order_id} status: {current_status} (elapsed: {elapsed_time:.2f}s)")
+                logger.info(
+                    f"Order {order_id} status: {current_status} (elapsed: {elapsed_time:.2f}s)"
+                )
                 last_status = current_status
 
             if (
@@ -855,14 +875,12 @@ class SaxoClient:
                 self._update_trade_metrics(status_data)
                 record_order_poll_time(current_status, elapsed_time)
                 return status_data
-                
+
             if current_status in failed_status:
                 logger.error(f"Order {order_id} reached failed status: {current_status}")
                 record_order_poll_time(current_status, elapsed_time)
                 raise SaxoApiError(
-                    f"Order {order_id} failed with status {current_status}", 
-                    None, 
-                    status_data
+                    f"Order {order_id} failed with status {current_status}", None, status_data
                 )
 
             jitter = random.uniform(0.9, 1.1) * poll_interval
