@@ -143,7 +143,7 @@ def test_build_market_order_body_sell(mock_get_uic: MagicMock, saxo_client: Saxo
 def test_wait_for_order_status(mock_get_status: MagicMock, saxo_client: SaxoClient) -> None:
     """Test wait_for_order_status method."""
     mock_get_status.return_value = {"OrderId": "test-123", "Status": "Filled"}
-    
+
     saxo_client.access_token = "test-token"
     saxo_client.account_key = "test-account"
 

@@ -71,7 +71,7 @@ class TestSlippageGuard:
         values = [0.4, 0.5, 0.6, 0.5, 0.4, 0.5, 0.6, 0.5, 0.4, 0.5]
         for val in values:
             self.guard.add_slippage("EURUSD", val)
-        
+
         mean, std = self.guard.get_slippage_stats("EURUSD")
         assert mean == pytest.approx(0.49, abs=0.01)  # nosec: B101 # pytest assertion
         assert std > 0.0  # nosec: B101 # pytest assertion
