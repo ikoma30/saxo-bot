@@ -7,6 +7,7 @@ with specific focus on trading operations.
 
 import logging
 import os
+import random
 import time
 from decimal import Decimal
 from typing import Any, ClassVar, cast
@@ -14,7 +15,7 @@ from typing import Any, ClassVar, cast
 import requests
 from prometheus_client import Gauge
 
-from src.common.exceptions import SaxoApiError
+from src.common.exceptions import SaxoApiError, OrderPollingTimeoutError
 from src.common.http_utils import request
 from src.common.retry_utils import retryable
 from src.core.guards import (
@@ -25,7 +26,7 @@ from src.core.guards import (
     SlippageGuard,
     TradingMode,
 )
-from src.services.metrics.prometheus import update_trade_status
+from src.services.metrics.prometheus import update_trade_status, record_order_poll_time
 
 logger = logging.getLogger("saxo")
 
@@ -401,23 +402,30 @@ class SaxoClient:
         Returns:
             Order details dictionary with Status field
         """
-        start_time = time.time()
         logger.info(f"Waiting for order {order_id} to be filled (max {max_wait_seconds}s)")
-
-        while time.time() - start_time < max_wait_seconds:
-            response = self._get(f"/trade/v3/orders/{order_id}/details")
-            if response and "Status" in response:
-                status = response["Status"]
-                logger.info(f"Order {order_id} status: {status}")
-
-                if status in ["Filled", "Executed"]:
-                    self._update_trade_status_metric(status)
-                    return response
-
-            time.sleep(poll_interval)
-
-        logger.warning(f"Order {order_id} not filled within {max_wait_seconds}s")
-        return {"OrderId": order_id, "Status": "Timeout"}
+        
+        try:
+            status_data = self.wait_for_order_status(
+                order_id,
+                target_status=["Filled", "Executed"],
+                failed_status=["Cancelled", "Expired", "Rejected"],
+                max_wait_seconds=max_wait_seconds,
+                poll_interval=poll_interval
+            )
+            
+            if status_data and status_data.get("Status") in ["Filled", "Executed"]:
+                self._update_trade_status_metric(status_data.get("Status"))
+                return status_data
+            
+            return {"OrderId": order_id, "Status": "Timeout"}
+        except OrderPollingTimeoutError as e:
+            logger.warning(str(e))
+            return {"OrderId": order_id, "Status": "Timeout"}
+        except SaxoApiError as e:
+            logger.error(f"Order failed: {str(e)}")
+            if e.response_body and isinstance(e.response_body, dict):
+                return {"OrderId": order_id, "Status": e.response_body.get("Status", "Failed")}
+            return {"OrderId": order_id, "Status": "Failed"}
 
     def _update_trade_status_metric(self, status: str) -> None:
         """
@@ -491,6 +499,7 @@ class SaxoClient:
             The request body for the Market order
         """
         return {
+            "AccountKey": self.account_key,  # Required field for v3 API
             "OrderType": "Market",
             "AssetType": "FxSpot",
             "BuySell": side,
@@ -498,6 +507,7 @@ class SaxoClient:
             "AmountType": "Lots",
             "Uic": self._get_instrument_uic(instrument),
             "OrderDuration": {"DurationType": "DayOrder"},
+            "ManualOrder": False,  # Required for algo/BOT trades
         }
 
     def _get_instrument_uic(self, instrument: str) -> int:
@@ -789,38 +799,52 @@ class SaxoClient:
         self,
         order_id: str,
         target_status: str | list[str] = ["Filled", "Executed"],
+        failed_status: str | list[str] = ["Cancelled", "Expired", "Rejected"],
         max_wait_seconds: int = 60,
         poll_interval: int = 2,
     ) -> dict[str, Any] | None:
         """
-        Poll for order status until it reaches the target status or timeout.
+        Poll for order status until it reaches the target status, failed status, or timeout.
 
         Args:
             order_id: The ID of the order to check
             target_status: The status to wait for (or list of statuses)
+            failed_status: Status values that indicate failure (or list of statuses)
             max_wait_seconds: Maximum time to wait in seconds
             poll_interval: Time between polls in seconds
 
         Returns:
             Optional[dict[str, Any]]: Order status information or None if the target status wasn't reached
+
+        Raises:
+            OrderPollingTimeoutError: If the polling times out
+            SaxoApiError: If the order reaches a failed status
         """
+        
         if isinstance(target_status, str):
             target_status = [target_status]
+            
+        if isinstance(failed_status, str):
+            failed_status = [failed_status]
 
         logger.info(f"Waiting for order {order_id} to reach status: {','.join(target_status)}")
-        end_time = time.time() + max_wait_seconds
+        start_time = time.time()
+        end_time = start_time + max_wait_seconds
         last_status = None
 
         while time.time() < end_time:
             status_data = self.get_order_status(order_id)
             if status_data is None:
                 logger.error(f"Failed to get status for order {order_id}")
-                time.sleep(poll_interval)
+                jitter = random.uniform(0.9, 1.1) * poll_interval
+                time.sleep(jitter)
                 continue
 
             current_status = status_data.get("Status", "Unknown")
+            elapsed_time = time.time() - start_time
+            
             if current_status != last_status:
-                logger.info(f"Order {order_id} status: {current_status}")
+                logger.info(f"Order {order_id} status: {current_status} (elapsed: {elapsed_time:.2f}s)")
                 last_status = current_status
 
             if (
@@ -829,14 +853,27 @@ class SaxoClient:
                 and status_data["status"] in target_status
             ):
                 self._update_trade_metrics(status_data)
+                record_order_poll_time(current_status, elapsed_time)
                 return status_data
+                
+            if current_status in failed_status:
+                logger.error(f"Order {order_id} reached failed status: {current_status}")
+                record_order_poll_time(current_status, elapsed_time)
+                raise SaxoApiError(
+                    f"Order {order_id} failed with status {current_status}", 
+                    None, 
+                    status_data
+                )
 
-            time.sleep(poll_interval)
+            jitter = random.uniform(0.9, 1.1) * poll_interval
+            time.sleep(jitter)
 
+        elapsed_time = time.time() - start_time
         logger.warning(
             f"Timed out waiting for order {order_id} to reach status: {','.join(target_status)}"
         )
-        return None
+        record_order_poll_time("Timeout", elapsed_time)
+        raise OrderPollingTimeoutError(order_id, elapsed_time, last_status or "Unknown")
 
     def _update_trade_metrics(self, status_data: dict[str, Any]) -> None:
         """
