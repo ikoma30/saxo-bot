@@ -8,7 +8,7 @@ x-common: &common-env
 
 services:
   parent_core:
-    image: ghcr.io/ikoma30/saxo-bot-parent:*image-tag
+    image: ghcr.io/ikoma30/saxo-bot-parent:${TAG:-latest}
     <<: *common-env
     cpuset: "0-1"          # ← Spec §4.15
     deploy:
@@ -22,7 +22,7 @@ services:
       retries: 6
 
   main_bot_core:
-    image: ghcr.io/ikoma30/saxo-bot-main:*image-tag
+    image: ghcr.io/ikoma30/saxo-bot-main:${TAG:-latest}
     <<: *common-env
     cpuset: "2"            # ← Spec §4.15 / Main-BOT §8.10:contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}
     deploy:
@@ -34,7 +34,7 @@ services:
         condition: service_healthy
 
   micro_rev_core:
-    image: ghcr.io/ikoma30/saxo-bot-microrev:*image-tag
+    image: ghcr.io/ikoma30/saxo-bot-microrev:${TAG:-latest}
     <<: *common-env
     cpuset: "3"            # ← Spec §4.15
     deploy:
