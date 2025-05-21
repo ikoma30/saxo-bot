@@ -133,10 +133,13 @@ jobs:
           echo "Container name: $CONTAINER_NAME"
           
           # Copy test files to parent_core container
-          docker cp tests/integration $CONTAINER_NAME:/tests/
-          docker cp src $CONTAINER_NAME:/src/
+          docker cp tests $CONTAINER_NAME:/tests
+          docker cp src $CONTAINER_NAME:/src
           docker cp pyproject.toml $CONTAINER_NAME:/
           docker cp conftest.py $CONTAINER_NAME:/
+          
+          # List files to verify they were copied correctly
+          docker exec $CONTAINER_NAME ls -la /tests/integration
           
           # Install dependencies and run tests inside the container
           docker exec -e SIM_CLIENT_ID=${SIM_CLIENT_ID} \
