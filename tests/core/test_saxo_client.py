@@ -543,7 +543,8 @@ class TestSaxoClient:
         
     def test_update_trade_metrics_not_initialized(self) -> None:
         """Test updating trade metrics when Prometheus metrics are not initialized."""
-        self.client.last_trade_status = None
+        from typing import cast
+        self.client.last_trade_status = cast(None, None)  # type: ignore # Intentionally set to None for testing
         
         self.client._update_trade_metrics({"Status": "Filled"})
 

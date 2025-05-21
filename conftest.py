@@ -17,7 +17,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--wait-filled",
         action="store",
-        default="0",
+        default="60",
         help="Wait for orders to be filled for N seconds",
     )
 
