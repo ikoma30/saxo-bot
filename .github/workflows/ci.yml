@@ -128,8 +128,19 @@ jobs:
           done
       - name: Run canary trade & assert Filled
         run: |
-          poetry run pytest tests/integration/test_sim_canary.py -q \
-            --wait-filled=60
+          # Copy test files to parent_core container
+          docker cp tests/integration parent_core:/tests/
+          docker cp src parent_core:/src/
+          docker cp pyproject.toml parent_core:/
+          
+          # Install dependencies and run tests inside the container
+          docker exec -e SIM_CLIENT_ID=${SIM_CLIENT_ID} \
+                     -e SIM_CLIENT_SECRET=${SIM_CLIENT_SECRET} \
+                     -e SIM_REFRESH_TOKEN=${SIM_REFRESH_TOKEN} \
+                     -e SIM_ACCOUNT_KEY=${SIM_ACCOUNT_KEY} \
+                     -e USE_TRADE_V3=true \
+                     parent_core bash -c "pip install pytest pytest-cov requests prometheus-client && \
+                                         python -m pytest /tests/integration/test_sim_canary.py -q --wait-filled=60"
       - name: Collect logs on failure
         if: failure()
         run: |
