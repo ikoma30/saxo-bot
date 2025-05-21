@@ -123,27 +123,20 @@ jobs:
           done
       - name: Run canary trade & assert Filled
         run: |
-          # Create temporary env file for secrets
-          cat > /tmp/.sim.env << EOF
-          SIM_CLIENT_ID=${SIM_CLIENT_ID}
-          SIM_CLIENT_SECRET=${SIM_CLIENT_SECRET}
-          SIM_REFRESH_TOKEN=${SIM_REFRESH_TOKEN}
-          SIM_ACCOUNT_KEY=${SIM_ACCOUNT_KEY}
-          USE_TRADE_V3=true
-          EOF
-          
           # Use docker compose run instead of docker cp + exec
+          # Pass environment variables directly since --env-file is not supported
           docker compose -f docker/docker-compose.sim.yml run --rm \
             -v $(pwd)/tests:/tests \
             -v $(pwd)/src:/src \
             -v $(pwd)/pyproject.toml:/pyproject.toml \
             -v $(pwd)/conftest.py:/conftest.py \
-            --env-file /tmp/.sim.env \
+            -e SIM_CLIENT_ID=${SIM_CLIENT_ID} \
+            -e SIM_CLIENT_SECRET=${SIM_CLIENT_SECRET} \
+            -e SIM_REFRESH_TOKEN=${SIM_REFRESH_TOKEN} \
+            -e SIM_ACCOUNT_KEY=${SIM_ACCOUNT_KEY} \
+            -e USE_TRADE_V3=true \
             parent_core bash -c "pip install pytest pytest-cov requests prometheus-client && \
                                python -m pytest /tests/integration/test_sim_canary.py -v --wait-filled=60"
-          
-          # Remove temporary env file
-          rm /tmp/.sim.env
       - name: Collect logs on failure
         if: failure()
         run: |
