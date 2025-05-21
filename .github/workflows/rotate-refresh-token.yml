@@ -7,7 +7,7 @@ concurrency:
 on:
   schedule:
     # ─ every Monday 03:00 UTC  (= JST 月曜正午) ─
-    - cron: '*/45 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 jobs:
