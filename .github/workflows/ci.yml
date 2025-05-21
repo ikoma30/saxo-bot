@@ -93,12 +93,7 @@ jobs:
               echo "$v looks set (length=${#v})"
             fi
           done
-      - name: Debug – show secret lengths (masked)
-        run: |
-          for v in SIM_CLIENT_ID SIM_CLIENT_SECRET SIM_ACCOUNT_KEY SIM_REFRESH_TOKEN; do
-            len=${#v}
-            echo "::notice title=$v::length=${#v}"
-          done
+      # Removed duplicate debug step as requested
       - name: Verify SIM secrets
         shell: bash
         run: |
@@ -128,27 +123,27 @@ jobs:
           done
       - name: Run canary trade & assert Filled
         run: |
-          # Get the container name with project prefix
-          CONTAINER_NAME=$(docker compose -f docker/docker-compose.sim.yml ps -q parent_core)
-          echo "Container name: $CONTAINER_NAME"
+          # Create temporary env file for secrets
+          cat > /tmp/.sim.env << EOF
+          SIM_CLIENT_ID=${SIM_CLIENT_ID}
+          SIM_CLIENT_SECRET=${SIM_CLIENT_SECRET}
+          SIM_REFRESH_TOKEN=${SIM_REFRESH_TOKEN}
+          SIM_ACCOUNT_KEY=${SIM_ACCOUNT_KEY}
+          USE_TRADE_V3=true
+          EOF
           
-          # Copy test files to parent_core container
-          docker cp tests $CONTAINER_NAME:/tests
-          docker cp src $CONTAINER_NAME:/src
-          docker cp pyproject.toml $CONTAINER_NAME:/
-          docker cp conftest.py $CONTAINER_NAME:/
+          # Use docker compose run instead of docker cp + exec
+          docker compose -f docker/docker-compose.sim.yml run --rm \
+            -v $(pwd)/tests:/tests \
+            -v $(pwd)/src:/src \
+            -v $(pwd)/pyproject.toml:/pyproject.toml \
+            -v $(pwd)/conftest.py:/conftest.py \
+            --env-file /tmp/.sim.env \
+            parent_core bash -c "pip install pytest pytest-cov requests prometheus-client && \
+                               python -m pytest /tests/integration/test_sim_canary.py -v --wait-filled=60"
           
-          # List files to verify they were copied correctly
-          docker exec $CONTAINER_NAME ls -la /tests/integration
-          
-          # Install dependencies and run tests inside the container
-          docker exec -e SIM_CLIENT_ID=${SIM_CLIENT_ID} \
-                     -e SIM_CLIENT_SECRET=${SIM_CLIENT_SECRET} \
-                     -e SIM_REFRESH_TOKEN=${SIM_REFRESH_TOKEN} \
-                     -e SIM_ACCOUNT_KEY=${SIM_ACCOUNT_KEY} \
-                     -e USE_TRADE_V3=true \
-                     $CONTAINER_NAME bash -c "pip install pytest pytest-cov requests prometheus-client && \
-                                         python -m pytest /tests/integration/test_sim_canary.py -v --wait-filled=60"
+          # Remove temporary env file
+          rm /tmp/.sim.env
       - name: Collect logs on failure
         if: failure()
         run: |
