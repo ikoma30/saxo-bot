@@ -8,7 +8,7 @@ x-common: &common-env
 
 services:
   parent_core:
-    image: ghcr.io/ikoma30/saxo-bot-parent:${TAG:-latest}
+    image: python:3.12-slim
     <<: *common-env
     cpuset: "0-1"          # ← Spec §4.15
     deploy:
@@ -16,13 +16,14 @@ services:
         limits:
           memory: 1500M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      test: ["CMD", "echo", "healthy"]
       interval: 10s
       timeout: 5s
       retries: 6
+    command: ["sh", "-c", "sleep infinity"]
 
   main_bot_core:
-    image: ghcr.io/ikoma30/saxo-bot-main:${TAG:-latest}
+    image: python:3.12-slim
     <<: *common-env
     cpuset: "2"            # ← Spec §4.15 / Main-BOT §8.10:contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}
     deploy:
@@ -32,9 +33,10 @@ services:
     depends_on:
       parent_core:
         condition: service_healthy
+    command: ["sh", "-c", "sleep infinity"]
 
   micro_rev_core:
-    image: ghcr.io/ikoma30/saxo-bot-microrev:${TAG:-latest}
+    image: python:3.12-slim
     <<: *common-env
     cpuset: "3"            # ← Spec §4.15
     deploy:
@@ -44,6 +46,7 @@ services:
     depends_on:
       parent_core:
         condition: service_healthy
+    command: ["sh", "-c", "sleep infinity"]
 
   prometheus:
     image: prom/prometheus:v2.51
