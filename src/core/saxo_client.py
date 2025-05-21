@@ -274,9 +274,11 @@ class SaxoClient:
         headers = self._get_headers()
 
         if os.environ.get("USE_TRADE_V3") == "true":
-            logger.info(f"Using trade v3 API for {side} {order_type} order of {amount} {instrument}")
+            logger.info(
+                f"Using trade v3 API for {side} {order_type} order of {amount} {instrument}"
+            )
             body = self._build_market_order_body(instrument, side, amount)
-            
+
             try:
                 response = self._post("/trade/v3/orders", json=body)
                 if response and "OrderId" in response:
@@ -353,11 +355,11 @@ class SaxoClient:
                     json=order_data,
                     timeout=self.timeout,
                 )
-                if hasattr(response_obj, 'raise_for_status'):
+                if hasattr(response_obj, "raise_for_status"):
                     response_obj.raise_for_status()
                     order_response: dict[str, Any] = response_obj.json()
                 else:
-                    if hasattr(response_obj, 'json'):
+                    if hasattr(response_obj, "json"):
                         order_response = response_obj.json()
                     else:
                         order_response = cast(dict[str, Any], response_obj)
@@ -384,103 +386,107 @@ class SaxoClient:
             except requests.RequestException as e:
                 logger.error(f"Order request failed: {str(e)}")
                 return None
-                
-    def wait_for_order_filled(self, order_id: str, max_wait_seconds: int = 60, poll_interval: int = 2) -> dict:
+
+    def wait_for_order_filled(
+        self, order_id: str, max_wait_seconds: int = 60, poll_interval: int = 2
+    ) -> dict:
         """
         Poll order status until it reaches Filled or Executed status or max wait time is reached.
-        
+
         Args:
             order_id: The ID of the order to check
             max_wait_seconds: Maximum time to wait in seconds
             poll_interval: Time between status checks in seconds
-            
+
         Returns:
             Order details dictionary with Status field
         """
         start_time = time.time()
         logger.info(f"Waiting for order {order_id} to be filled (max {max_wait_seconds}s)")
-        
+
         while time.time() - start_time < max_wait_seconds:
             response = self._get(f"/trade/v3/orders/{order_id}/details")
             if response and "Status" in response:
                 status = response["Status"]
                 logger.info(f"Order {order_id} status: {status}")
-                
+
                 if status in ["Filled", "Executed"]:
                     self._update_trade_status_metric(status)
                     return response
-            
+
             time.sleep(poll_interval)
-        
+
         logger.warning(f"Order {order_id} not filled within {max_wait_seconds}s")
         return {"OrderId": order_id, "Status": "Timeout"}
-    
+
     def _update_trade_status_metric(self, status: str) -> None:
         """
         Update the Prometheus metric for trade status.
-        
+
         Args:
             status: The status of the order (Filled or Executed)
         """
         update_trade_status(status)
-        
+
     def _get(self, endpoint: str, **kwargs: Any) -> dict[str, Any]:
         """
         Make a GET request to the Saxo API.
-        
+
         Args:
             endpoint: API endpoint (e.g., "/trade/v3/orders/123/details")
             **kwargs: Additional arguments for the request
-            
+
         Returns:
             Response from the API as a dictionary
         """
         url = f"{self.base_url}{endpoint}"
         headers = self._get_headers()
-        
+
         if "headers" not in kwargs:
             kwargs["headers"] = headers
         else:
             kwargs["headers"].update(headers)
-        
+
         response = request("GET", url, **kwargs)
         if isinstance(response, dict):
             return response
         return dict(response.json())
-        
+
     def _post(self, endpoint: str, **kwargs: Any) -> dict[str, Any]:
         """
         Make a POST request to the Saxo API.
-        
+
         Args:
             endpoint: API endpoint (e.g., "/trade/v3/orders")
             **kwargs: Additional arguments for the request
-            
+
         Returns:
             Response from the API as a dictionary
         """
         url = f"{self.base_url}{endpoint}"
         headers = self._get_headers()
-        
+
         if "headers" not in kwargs:
             kwargs["headers"] = headers
         else:
             kwargs["headers"].update(headers)
-        
+
         response = request("POST", url, **kwargs)
         if isinstance(response, dict):
             return response
         return dict(response.json())
-        
-    def _build_market_order_body(self, instrument: str, side: str, amount: int | float | Decimal) -> dict:
+
+    def _build_market_order_body(
+        self, instrument: str, side: str, amount: int | float | Decimal
+    ) -> dict:
         """
         Build the request body for a Market order.
-        
+
         Args:
             instrument: The instrument to trade
             side: Buy or Sell
             amount: The amount to trade
-            
+
         Returns:
             The request body for the Market order
         """
@@ -491,18 +497,16 @@ class SaxoClient:
             "Amount": str(amount),
             "AmountType": "Lots",
             "Uic": self._get_instrument_uic(instrument),
-            "OrderDuration": {
-                "DurationType": "DayOrder"
-            }
+            "OrderDuration": {"DurationType": "DayOrder"},
         }
-        
+
     def _get_instrument_uic(self, instrument: str) -> int:
         """
         Get the UIC (Universal Instrument Code) for an instrument.
-        
+
         Args:
             instrument: The instrument code (e.g., USDJPY)
-            
+
         Returns:
             The UIC for the instrument
         """
@@ -604,11 +608,11 @@ class SaxoClient:
                 json=order_data,
                 timeout=self.timeout,
             )
-            if hasattr(response_obj, 'raise_for_status'):
+            if hasattr(response_obj, "raise_for_status"):
                 response_obj.raise_for_status()
                 precheck_result: dict[str, Any] = response_obj.json()
             else:
-                if hasattr(response_obj, 'json'):
+                if hasattr(response_obj, "json"):
                     precheck_result = response_obj.json()
                 else:
                     precheck_result = cast(dict[str, Any], response_obj)
@@ -659,7 +663,7 @@ class SaxoClient:
                 headers=headers,
                 timeout=self.timeout,
             )
-            if hasattr(response_obj, 'raise_for_status'):
+            if hasattr(response_obj, "raise_for_status"):
                 response_obj.raise_for_status()
             logger.info(f"Successfully accepted disclaimer {disclaimer_id}")
             return True
@@ -711,7 +715,7 @@ class SaxoClient:
                 headers=headers,
                 timeout=self.timeout,
             )
-            if hasattr(response_obj, 'raise_for_status'):
+            if hasattr(response_obj, "raise_for_status"):
                 response_obj.raise_for_status()
             logger.info(f"Successfully cancelled order {order_id}")
             return True

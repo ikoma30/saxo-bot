@@ -56,7 +56,7 @@ def test_main_bot_canary(request: pytest.FixtureRequest) -> None:
         if order_result and "OrderId" in order_result:
             order_id = order_result["OrderId"]
             filled_result = client.wait_for_order_filled(order_id, max_wait_seconds=60)
-            
+
             if filled_result and filled_result.get("Status") in ["Filled", "Executed"]:
                 fill_count += 1
 
@@ -64,7 +64,7 @@ def test_main_bot_canary(request: pytest.FixtureRequest) -> None:
                     losses.append(0.5)  # Simulated loss
                 else:
                     profits.append(1.0)  # Simulated profit
-            
+
             # Also use wait_for_order_status if --wait-filled is specified
             wait_filled_seconds = int(request.config.getoption("--wait-filled", "0"))
             if wait_filled_seconds > 0:
@@ -140,7 +140,7 @@ def test_micro_rev_bot_canary(request: pytest.FixtureRequest) -> None:
         if order_result and "OrderId" in order_result:
             order_id = order_result["OrderId"]
             filled_result = client.wait_for_order_filled(order_id, max_wait_seconds=60)
-            
+
             if filled_result and filled_result.get("Status") in ["Filled", "Executed"]:
                 fill_count += 1
 
@@ -148,7 +148,7 @@ def test_micro_rev_bot_canary(request: pytest.FixtureRequest) -> None:
                     losses.append(0.5)  # Simulated loss
                 else:
                     profits.append(1.0)  # Simulated profit
-            
+
             # Also use wait_for_order_status if --wait-filled is specified
             wait_filled_seconds = int(request.config.getoption("--wait-filled", "0"))
             if wait_filled_seconds > 0:
