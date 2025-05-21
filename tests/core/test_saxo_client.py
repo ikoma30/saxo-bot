@@ -499,6 +499,9 @@ class TestSaxoClient:
         self.client.last_trade_status.labels.assert_any_call(
             env=self.client.environment, status="Filled"
         )
+        self.client.last_trade_status.labels.assert_any_call(
+            env=self.client.environment, status="Executed"
+        )
 
     def test_update_trade_metrics_other_status(self) -> None:
         """Test updating trade metrics with a status other than Filled/Executed."""

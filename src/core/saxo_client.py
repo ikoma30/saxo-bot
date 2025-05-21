@@ -698,5 +698,7 @@ class SaxoClient:
         if current_status in ["Filled", "Executed"]:
             logger.info("Order filled/executed, updating Prometheus metric")
             self.last_trade_status.labels(env=self.environment, status="Filled").set(1)
+            if current_status == "Executed":
+                self.last_trade_status.labels(env=self.environment, status="Executed").set(1)
         else:
             self.last_trade_status.labels(env=self.environment, status=current_status).set(1)
