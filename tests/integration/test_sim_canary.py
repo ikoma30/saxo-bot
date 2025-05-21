@@ -54,11 +54,20 @@ def test_main_bot_canary(request: pytest.FixtureRequest) -> None:
         latencies.append(latency_ms)
 
         if order_result and "OrderId" in order_result:
-            fill_count += 1
+            order_id = order_result["OrderId"]
+            filled_result = client.wait_for_order_filled(order_id, max_wait_seconds=60)
+            
+            if filled_result and filled_result.get("Status") in ["Filled", "Executed"]:
+                fill_count += 1
 
+                if i % 3 == 0:  # Simulate some losses
+                    losses.append(0.5)  # Simulated loss
+                else:
+                    profits.append(1.0)  # Simulated profit
+            
+            # Also use wait_for_order_status if --wait-filled is specified
             wait_filled_seconds = int(request.config.getoption("--wait-filled", "0"))
             if wait_filled_seconds > 0:
-                order_id = order_result["OrderId"]
                 filled_status = client.wait_for_order_status(
                     order_id,
                     target_status=["Filled", "Executed"],
@@ -68,11 +77,6 @@ def test_main_bot_canary(request: pytest.FixtureRequest) -> None:
                     logger.warning(
                         f"Order {order_id} did not reach Filled/Executed status within timeout"
                     )
-
-            if i % 3 == 0:  # Simulate some losses
-                losses.append(0.5)  # Simulated loss
-            else:
-                profits.append(1.0)  # Simulated profit
 
         time.sleep(1)
 
@@ -134,11 +138,20 @@ def test_micro_rev_bot_canary(request: pytest.FixtureRequest) -> None:
         latencies.append(latency_ms)
 
         if order_result and "OrderId" in order_result:
-            fill_count += 1
+            order_id = order_result["OrderId"]
+            filled_result = client.wait_for_order_filled(order_id, max_wait_seconds=60)
+            
+            if filled_result and filled_result.get("Status") in ["Filled", "Executed"]:
+                fill_count += 1
 
+                if i % 3 == 0:  # Simulate some losses
+                    losses.append(0.5)  # Simulated loss
+                else:
+                    profits.append(1.0)  # Simulated profit
+            
+            # Also use wait_for_order_status if --wait-filled is specified
             wait_filled_seconds = int(request.config.getoption("--wait-filled", "0"))
             if wait_filled_seconds > 0:
-                order_id = order_result["OrderId"]
                 filled_status = client.wait_for_order_status(
                     order_id,
                     target_status=["Filled", "Executed"],
@@ -148,11 +161,6 @@ def test_micro_rev_bot_canary(request: pytest.FixtureRequest) -> None:
                     logger.warning(
                         f"Order {order_id} did not reach Filled/Executed status within timeout"
                     )
-
-            if i % 3 == 0:  # Simulate some losses
-                losses.append(0.5)  # Simulated loss
-            else:
-                profits.append(1.0)  # Simulated profit
 
         time.sleep(1)
 
