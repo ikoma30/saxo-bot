@@ -108,6 +108,16 @@ jobs:
               exit 1
             fi
           done
+      - name: Create .env.sim file
+        run: |
+          mkdir -p docker
+          cat > docker/.env.sim << EOF
+          SIM_CLIENT_ID=${SIM_CLIENT_ID}
+          SIM_CLIENT_SECRET=${SIM_CLIENT_SECRET}
+          SIM_REFRESH_TOKEN=${SIM_REFRESH_TOKEN}
+          SIM_ACCOUNT_KEY=${SIM_ACCOUNT_KEY}
+          USE_TRADE_V3=true
+          EOF
       - name: Spin up stack
         run: |
           docker compose -f docker/docker-compose.sim.yml up -d
