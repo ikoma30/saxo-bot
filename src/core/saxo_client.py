@@ -432,7 +432,9 @@ class SaxoClient:
             )
 
             if status_data and status_data.get("Status") in ["Filled", "Executed"]:
-                self._update_trade_status_metric(status_data.get("Status"))
+                status = status_data.get("Status", "")
+                if status:  # Ensure we have a non-empty string
+                    self._update_trade_status_metric(status)
                 return status_data
 
             return {"OrderId": order_id, "Status": "Timeout"}
