@@ -9,6 +9,7 @@ import logging
 import os
 import random
 import time
+import base64
 from decimal import Decimal
 from typing import Any, ClassVar, cast
 
@@ -89,19 +90,55 @@ class SaxoClient:
             logger.error("Missing required authentication credentials")
             return False
 
+        client_id_masked = (
+            f"{self.client_id[:3]}...{self.client_id[-3:]}"
+            if self.client_id and len(self.client_id) > 6
+            else "***"
+        )
+        client_secret_masked = (
+            f"{self.client_secret[:3]}...{self.client_secret[-3:]}"
+            if self.client_secret and len(self.client_secret) > 6
+            else "***"
+        )
+        refresh_token_masked = (
+            f"{self.refresh_token[:3]}...{self.refresh_token[-3:]}"
+            if self.refresh_token and len(self.refresh_token) > 6
+            else "***"
+        )
+        account_key_masked = (
+            f"{self.account_key[:3]}...{self.account_key[-3:]}"
+            if self.account_key and len(self.account_key) > 6
+            else "***"
+        )
+
+        logger.info(
+            f"Auth credentials: CID={client_id_masked}, CS={client_secret_masked}, RT={refresh_token_masked}, AK={account_key_masked}"
+        )
+
+        token_url = f"{self.base_url}/identity/v1/token"
+
         data = {
             "grant_type": "refresh_token",
             "refresh_token": self.refresh_token,
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
+        }
+
+        auth_string = f"{self.client_id}:{self.client_secret}"
+        auth_bytes = auth_string.encode("ascii")
+        auth_b64 = base64.b64encode(auth_bytes).decode("ascii")
+
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-ClientKey": self.client_id,
+            "Authorization": f"Basic {auth_b64}",
         }
 
         try:
-            logger.info("Authenticating with Saxo Bank API")
+            logger.info(f"Authenticating with Saxo Bank API at {token_url}")
             response = request(
                 "POST",
-                f"{self.base_url}/token",
+                token_url,
                 data=data,
+                headers=headers,
                 timeout=self.timeout,
             )
             response.raise_for_status()
@@ -111,10 +148,30 @@ class SaxoClient:
             return bool(self.access_token)
         except requests.HTTPError as e:
             if hasattr(e, "response") and e.response is not None:
-                logger.error(f"Authentication failed with status {e.response.status_code}")
-                raise SaxoApiError(
-                    "Authentication failed", e.response.status_code, e.response.json()
-                ) from e
+                status_code = e.response.status_code
+                logger.error(f"Authentication failed with status {status_code}")
+
+                if status_code >= 400:
+                    response_text = (
+                        e.response.text[:100] if hasattr(e.response, "text") else "No response text"
+                    )
+                    logger.error(
+                        f"URL: {token_url}, Status: {status_code}, Response: {response_text}"
+                    )
+
+                try:
+                    response_json = e.response.json()
+                    raise SaxoApiError("Authentication failed", status_code, response_json) from e
+                except (ValueError, requests.exceptions.JSONDecodeError):
+                    response_text = (
+                        e.response.text if hasattr(e.response, "text") else "No response text"
+                    )
+                    logger.error(f"Failed to decode JSON response: {response_text[:100]}")
+                    raise SaxoApiError(
+                        "Authentication failed (invalid JSON response)",
+                        status_code,
+                        {"error": response_text[:100]},
+                    ) from e
             else:
                 logger.error(f"Authentication failed: {str(e)}")
                 raise SaxoApiError("Authentication failed", None, None) from e

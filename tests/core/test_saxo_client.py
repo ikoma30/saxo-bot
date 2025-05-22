@@ -84,12 +84,15 @@ class TestSaxoClient:
         args, kwargs = mock_request.call_args
         assert args[0] == "POST"  # nosec: B101 # pytest assertion
         assert (
-            args[1] == "https://gateway.saxobank.com/openapi/token"
+            args[1] == "https://gateway.saxobank.com/openapi/identity/v1/token"
         )  # nosec: B101 # pytest assertion
         assert kwargs["data"]["grant_type"] == "refresh_token"  # nosec: B101 # pytest assertion
         assert kwargs["data"]["refresh_token"] == "test_token"  # nosec: B101 # pytest assertion
-        assert kwargs["data"]["client_id"] == "test_client_id"  # nosec: B101 # pytest assertion
-        assert kwargs["data"]["client_secret"] == "test_secret"  # nosec: B101 # pytest assertion
+        assert "headers" in kwargs  # nosec: B101 # pytest assertion
+        assert (
+            kwargs["headers"]["X-ClientKey"] == "test_client_id"
+        )  # nosec: B101 # pytest assertion
+        assert "Authorization" in kwargs["headers"]  # nosec: B101 # pytest assertion
         assert kwargs["timeout"] == 5  # nosec: B101 # pytest assertion
 
     @patch("src.core.saxo_client.request")
