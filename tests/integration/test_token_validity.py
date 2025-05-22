@@ -6,7 +6,6 @@ Tests SIM Refresh-Token 24h validity check.
 
 import datetime
 import logging
-import os
 import time
 
 import pytest
@@ -20,6 +19,9 @@ logger = logging.getLogger("test")
 @pytest.mark.integration
 def test_sim_token_exchange() -> None:
     """Test that SIM refresh token can be exchanged for an access token."""
+    import os
+    if not os.getenv("SIM_REFRESH_TOKEN"):
+        pytest.skip("SIM_REFRESH_TOKEN not set – skipping live canary")
     skip_if_no_sim_token()
 
     client = SaxoClient(environment="sim")
@@ -37,6 +39,9 @@ def test_sim_token_24h_validity() -> None:
     This test verifies that the refresh token has at least 24 hours of
     validity remaining, which is required for operational resilience.
     """
+    import os
+    if not os.getenv("SIM_REFRESH_TOKEN"):
+        pytest.skip("SIM_REFRESH_TOKEN not set – skipping live canary")
     skip_if_no_sim_token()
 
     start_time = time.time()

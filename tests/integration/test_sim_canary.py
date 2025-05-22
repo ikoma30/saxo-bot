@@ -5,7 +5,6 @@ Tests minimal functionality with small-lot orders to verify KPIs.
 """
 
 import logging
-import os
 import time
 
 import pytest
@@ -26,6 +25,9 @@ def test_main_bot_canary(request: pytest.FixtureRequest) -> None:
     - PF ≥ 0.9
     - Latency ≤ 250 ms
     """
+    import os
+    if not os.getenv("SIM_REFRESH_TOKEN"):
+        pytest.skip("SIM_REFRESH_TOKEN not set – skipping live canary")
     skip_if_no_sim_token()
 
     client = SaxoClient(environment="sim")
@@ -109,6 +111,9 @@ def test_micro_rev_bot_canary(request: pytest.FixtureRequest) -> None:
     - PF ≥ 0.9
     - Latency ≤ 250 ms
     """
+    import os
+    if not os.getenv("SIM_REFRESH_TOKEN"):
+        pytest.skip("SIM_REFRESH_TOKEN not set – skipping live canary")
     skip_if_no_sim_token()
 
     client = SaxoClient(environment="sim")
@@ -190,6 +195,9 @@ def test_slippage_guard_rejection() -> None:
     This test forces a high-spread condition and verifies that SlippageGuard
     correctly rejects the order.
     """
+    import os
+    if not os.getenv("SIM_REFRESH_TOKEN"):
+        pytest.skip("SIM_REFRESH_TOKEN not set – skipping live canary")
     skip_if_no_sim_token()
 
     client = SaxoClient(environment="sim")
