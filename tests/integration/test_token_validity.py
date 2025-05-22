@@ -12,6 +12,7 @@ import time
 import pytest
 
 from src.core.saxo_client import SaxoClient
+from tests.utils.skip_helpers import skip_if_no_sim_token
 
 logger = logging.getLogger("test")
 
@@ -19,8 +20,7 @@ logger = logging.getLogger("test")
 @pytest.mark.integration
 def test_sim_token_exchange() -> None:
     """Test that SIM refresh token can be exchanged for an access token."""
-    if "CI" in os.environ and not os.environ.get("SIM_REFRESH_TOKEN"):
-        pytest.skip("Skipping in CI without SIM_REFRESH_TOKEN")
+    skip_if_no_sim_token()
 
     client = SaxoClient(environment="sim")
     result = client.authenticate()
@@ -37,8 +37,7 @@ def test_sim_token_24h_validity() -> None:
     This test verifies that the refresh token has at least 24 hours of
     validity remaining, which is required for operational resilience.
     """
-    if "CI" in os.environ and not os.environ.get("SIM_REFRESH_TOKEN"):
-        pytest.skip("Skipping in CI without SIM_REFRESH_TOKEN")
+    skip_if_no_sim_token()
 
     start_time = time.time()
 

@@ -11,6 +11,7 @@ import time
 import pytest
 
 from src.core.saxo_client import SaxoClient
+from tests.utils.skip_helpers import skip_if_no_sim_token
 
 logger = logging.getLogger("test")
 
@@ -25,8 +26,7 @@ def test_main_bot_canary(request: pytest.FixtureRequest) -> None:
     - PF ≥ 0.9
     - Latency ≤ 250 ms
     """
-    if "CI" in os.environ and not os.environ.get("SIM_REFRESH_TOKEN"):
-        pytest.skip("Skipping in CI without SIM_REFRESH_TOKEN")
+    skip_if_no_sim_token()
 
     client = SaxoClient(environment="sim")
     result = client.authenticate()
@@ -109,8 +109,7 @@ def test_micro_rev_bot_canary(request: pytest.FixtureRequest) -> None:
     - PF ≥ 0.9
     - Latency ≤ 250 ms
     """
-    if "CI" in os.environ and not os.environ.get("SIM_REFRESH_TOKEN"):
-        pytest.skip("Skipping in CI without SIM_REFRESH_TOKEN")
+    skip_if_no_sim_token()
 
     client = SaxoClient(environment="sim")
     result = client.authenticate()
@@ -191,8 +190,7 @@ def test_slippage_guard_rejection() -> None:
     This test forces a high-spread condition and verifies that SlippageGuard
     correctly rejects the order.
     """
-    if "CI" in os.environ and not os.environ.get("SIM_REFRESH_TOKEN"):
-        pytest.skip("Skipping in CI without SIM_REFRESH_TOKEN")
+    skip_if_no_sim_token()
 
     client = SaxoClient(environment="sim")
     result = client.authenticate()

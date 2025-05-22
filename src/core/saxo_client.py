@@ -15,7 +15,7 @@ from typing import Any, ClassVar, cast
 import requests
 from prometheus_client import Gauge
 
-from src.common.exceptions import SaxoApiError, OrderPollingTimeoutError
+from src.common.exceptions import SaxoApiError, OrderPollingTimeoutError, OrderRejectedError
 from src.common.http_utils import request
 from src.common.retry_utils import retryable
 from src.core.guards import (
@@ -881,8 +881,12 @@ class SaxoClient:
             if current_status in failed_status:
                 logger.error(f"Order {order_id} reached failed status: {current_status}")
                 record_order_poll_time(current_status, elapsed_time)
-                raise SaxoApiError(
-                    f"Order {order_id} failed with status {current_status}", None, status_data
+                raise OrderRejectedError(
+                    f"Order {order_id} failed with status {current_status}",
+                    None,
+                    status_data,
+                    order_id,
+                    current_status
                 )
 
             jitter = random.uniform(0.9, 1.1) * poll_interval

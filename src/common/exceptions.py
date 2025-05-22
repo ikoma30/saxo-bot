@@ -32,6 +32,37 @@ class SaxoApiError(Exception):
         super().__init__(error_msg)
 
 
+class OrderRejectedError(SaxoApiError):
+    """
+    Exception raised when an order is rejected by Saxo.
+
+    This exception is raised when an order status polling ends with
+    a status in {Cancelled, Rejected, Expired}.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        response_body: dict[str, Any] | None = None,
+        order_id: str | None = None,
+        status: str | None = None,
+    ) -> None:
+        """
+        Initialize OrderRejectedError.
+
+        Args:
+            message: Error message
+            status_code: HTTP status code
+            response_body: Full response body from the API
+            order_id: The ID of the rejected order
+            status: The status of the rejected order
+        """
+        super().__init__(message, status_code, response_body)
+        self.order_id = order_id
+        self.status = status
+
+
 class OrderPollingTimeoutError(Exception):
     """
     Raised when order polling times out without reaching a terminal status.
