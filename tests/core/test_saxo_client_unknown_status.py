@@ -1,3 +1,7 @@
+"""
+Unit tests for SaxoClient unknown status handling.
+"""
+
 from unittest.mock import MagicMock
 from src.core.saxo_client import SaxoClient
 
