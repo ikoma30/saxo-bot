@@ -3,7 +3,6 @@ Unit tests for SaxoClient.
 """
 
 import os
-import requests
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -197,17 +196,17 @@ def test_get_method_success(mock_request: MagicMock, saxo_client: SaxoClient) ->
     mock_response = MagicMock()
     mock_response.json.return_value = {"key": "value"}
     mock_request.return_value = mock_response
-    
+
     saxo_client.access_token = "test-token"
-    
+
     result = saxo_client._get("/test/endpoint", timeout=5)
-    
+
     assert result == {"key": "value"}
     mock_request.assert_called_once_with(
-        "GET", 
-        f"{saxo_client.base_url}/test/endpoint", 
-        headers={"Authorization": "Bearer test-token"}, 
-        timeout=5
+        "GET",
+        f"{saxo_client.base_url}/test/endpoint",
+        headers={"Authorization": "Bearer test-token"},
+        timeout=5,
     )
 
 
@@ -215,11 +214,11 @@ def test_get_method_success(mock_request: MagicMock, saxo_client: SaxoClient) ->
 def test_get_method_with_dict_response(mock_request: MagicMock, saxo_client: SaxoClient) -> None:
     """Test the _get method when request returns a dict directly."""
     mock_request.return_value = {"key": "value"}
-    
+
     saxo_client.access_token = "test-token"
-    
+
     result = saxo_client._get("/test/endpoint")
-    
+
     assert result == {"key": "value"}
     mock_request.assert_called_once()
 
@@ -230,18 +229,18 @@ def test_post_method_success(mock_request: MagicMock, saxo_client: SaxoClient) -
     mock_response = MagicMock()
     mock_response.json.return_value = {"orderId": "12345"}
     mock_request.return_value = mock_response
-    
+
     saxo_client.access_token = "test-token"
-    
+
     result = saxo_client._post("/test/endpoint", json={"data": "test"}, timeout=5)
-    
+
     assert result == {"orderId": "12345"}
     mock_request.assert_called_once_with(
-        "POST", 
-        f"{saxo_client.base_url}/test/endpoint", 
-        headers={"Authorization": "Bearer test-token"}, 
-        json={"data": "test"}, 
-        timeout=5
+        "POST",
+        f"{saxo_client.base_url}/test/endpoint",
+        headers={"Authorization": "Bearer test-token"},
+        json={"data": "test"},
+        timeout=5,
     )
 
 
@@ -249,10 +248,10 @@ def test_post_method_success(mock_request: MagicMock, saxo_client: SaxoClient) -
 def test_post_method_with_dict_response(mock_request: MagicMock, saxo_client: SaxoClient) -> None:
     """Test the _post method when request returns a dict directly."""
     mock_request.return_value = {"orderId": "12345"}
-    
+
     saxo_client.access_token = "test-token"
-    
+
     result = saxo_client._post("/test/endpoint", json={"data": "test"})
-    
+
     assert result == {"orderId": "12345"}
     mock_request.assert_called_once()
