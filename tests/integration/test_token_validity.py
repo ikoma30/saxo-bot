@@ -20,6 +20,7 @@ logger = logging.getLogger("test")
 def test_sim_token_exchange() -> None:
     """Test that SIM refresh token can be exchanged for an access token."""
     import os
+
     if not os.getenv("SIM_REFRESH_TOKEN"):
         pytest.skip("SIM_REFRESH_TOKEN not set – skipping live canary")
     skip_if_no_sim_token()
@@ -40,6 +41,7 @@ def test_sim_token_24h_validity() -> None:
     validity remaining, which is required for operational resilience.
     """
     import os
+
     if not os.getenv("SIM_REFRESH_TOKEN"):
         pytest.skip("SIM_REFRESH_TOKEN not set – skipping live canary")
     skip_if_no_sim_token()

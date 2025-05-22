@@ -292,12 +292,12 @@ class SaxoClient:
                     error_code = e.response_body.get("ErrorCode", "Unknown")
                     error_message = e.response_body.get("Message", "No message")
                     model_state = e.response_body.get("ModelState", {})
-                    
+
                     model_state_keys = list(model_state.keys())[:3] if model_state else []
                     model_state_info = {}
                     for key in model_state_keys:
                         model_state_info[key] = model_state[key]
-                    
+
                     logger.warning(
                         f"HTTP 400 Error placing v3 order: ErrorCode={error_code}, "
                         f"Message={error_message}, ModelState keys={model_state_info}"
@@ -886,7 +886,7 @@ class SaxoClient:
                     None,
                     status_data,
                     order_id,
-                    current_status
+                    current_status,
                 )
 
             jitter = random.uniform(0.9, 1.1) * poll_interval

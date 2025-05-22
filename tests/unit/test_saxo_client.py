@@ -70,11 +70,11 @@ def test_wait_for_order_filled_success(
     assert result["Status"] == "Filled"
     mock_update_status.assert_called_once_with("Filled")
     mock_wait_for_status.assert_called_once_with(
-        "test-123", 
+        "test-123",
         target_status=["Filled", "Executed"],
         failed_status=["Cancelled", "Expired", "Rejected"],
-        max_wait_seconds=5, 
-        poll_interval=2
+        max_wait_seconds=5,
+        poll_interval=2,
     )
 
 
@@ -91,11 +91,11 @@ def test_wait_for_order_filled_executed(
     assert result["Status"] == "Executed"
     mock_update_status.assert_called_once_with("Executed")
     mock_wait_for_status.assert_called_once_with(
-        "test-123", 
+        "test-123",
         target_status=["Filled", "Executed"],
         failed_status=["Cancelled", "Expired", "Rejected"],
-        max_wait_seconds=5, 
-        poll_interval=2
+        max_wait_seconds=5,
+        poll_interval=2,
     )
 
 
@@ -114,11 +114,11 @@ def test_wait_for_order_filled_timeout(
     assert result["Status"] == "Timeout"
     mock_update_status.assert_not_called()
     mock_wait_for_status.assert_called_once_with(
-        "test-123", 
+        "test-123",
         target_status=["Filled", "Executed"],
         failed_status=["Cancelled", "Expired", "Rejected"],
-        max_wait_seconds=3, 
-        poll_interval=1
+        max_wait_seconds=3,
+        poll_interval=1,
     )
 
 

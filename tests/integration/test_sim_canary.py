@@ -26,6 +26,7 @@ def test_main_bot_canary(request: pytest.FixtureRequest) -> None:
     - Latency ≤ 250 ms
     """
     import os
+
     if not os.getenv("SIM_REFRESH_TOKEN"):
         pytest.skip("SIM_REFRESH_TOKEN not set – skipping live canary")
     skip_if_no_sim_token()
@@ -112,6 +113,7 @@ def test_micro_rev_bot_canary(request: pytest.FixtureRequest) -> None:
     - Latency ≤ 250 ms
     """
     import os
+
     if not os.getenv("SIM_REFRESH_TOKEN"):
         pytest.skip("SIM_REFRESH_TOKEN not set – skipping live canary")
     skip_if_no_sim_token()
@@ -196,6 +198,7 @@ def test_slippage_guard_rejection() -> None:
     correctly rejects the order.
     """
     import os
+
     if not os.getenv("SIM_REFRESH_TOKEN"):
         pytest.skip("SIM_REFRESH_TOKEN not set – skipping live canary")
     skip_if_no_sim_token()

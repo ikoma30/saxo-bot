@@ -453,9 +453,7 @@ class TestSaxoClient:
         mock_get_status.return_value = {"Status": "Working"}
 
         with pytest.raises(OrderPollingTimeoutError) as excinfo:
-            self.client.wait_for_order_status(
-                "123", target_status="Filled", max_wait_seconds=50
-            )
+            self.client.wait_for_order_status("123", target_status="Filled", max_wait_seconds=50)
 
         assert "Order 123 polling timed out" in str(excinfo.value)  # nosec: B101 # pytest assertion
         assert mock_get_status.call_count > 1  # nosec: B101 # pytest assertion
@@ -483,9 +481,7 @@ class TestSaxoClient:
         mock_get_status.return_value = None
 
         with pytest.raises(OrderPollingTimeoutError) as excinfo:
-            self.client.wait_for_order_status(
-                "123", target_status="Filled", max_wait_seconds=5
-            )
+            self.client.wait_for_order_status("123", target_status="Filled", max_wait_seconds=5)
 
         assert "Order 123 polling timed out" in str(excinfo.value)  # nosec: B101 # pytest assertion
         assert mock_get_status.call_count > 1  # nosec: B101 # pytest assertion
@@ -499,9 +495,7 @@ class TestSaxoClient:
         mock_get_status.return_value = {"Status": "Working"}
 
         with pytest.raises(OrderPollingTimeoutError) as excinfo:
-            self.client.wait_for_order_status(
-                "123", target_status="Filled", max_wait_seconds=5
-            )
+            self.client.wait_for_order_status("123", target_status="Filled", max_wait_seconds=5)
 
         assert "Order 123 polling timed out" in str(excinfo.value)  # nosec: B101 # pytest assertion
         assert "Working" in str(excinfo.value)  # nosec: B101 # pytest assertion
