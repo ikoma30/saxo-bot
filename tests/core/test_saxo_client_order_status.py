@@ -6,9 +6,8 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from src.common.exceptions import OrderPollingTimeoutError, OrderRejectedError
+from src.common.exceptions import OrderPollingTimeoutError
 from src.core.saxo_client import SaxoClient
-from tests.utils.skip_helpers import skip_if_no_sim_token
 
 
 @pytest.fixture
