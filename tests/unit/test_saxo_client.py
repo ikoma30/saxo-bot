@@ -3,6 +3,7 @@ Unit tests for SaxoClient.
 """
 
 import os
+import requests
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -254,4 +255,62 @@ def test_post_method_with_dict_response(mock_request: MagicMock, saxo_client: Sa
     result = saxo_client._post("/test/endpoint", json={"data": "test"})
 
     assert result == {"orderId": "12345"}
+    mock_request.assert_called_once()
+
+
+@patch("src.core.saxo_client.request")
+def test_get_method_http_error(mock_request: MagicMock, saxo_client: SaxoClient) -> None:
+    """Test the _get method with an HTTP error."""
+    mock_response = MagicMock()
+    mock_response.status_code = 400
+    mock_response.json.return_value = {"ErrorCode": "InvalidRequest", "Message": "Bad request"}
+    mock_request.side_effect = requests.HTTPError("400 Client Error", response=mock_response)
+
+    saxo_client.access_token = "test-token"
+
+    with pytest.raises(requests.HTTPError):
+        saxo_client._get("/test/endpoint")
+
+    mock_request.assert_called_once()
+
+
+@patch("src.core.saxo_client.request")
+def test_get_method_request_exception(mock_request: MagicMock, saxo_client: SaxoClient) -> None:
+    """Test the _get method with a request exception."""
+    mock_request.side_effect = requests.RequestException("Connection error")
+
+    saxo_client.access_token = "test-token"
+
+    with pytest.raises(requests.RequestException):
+        saxo_client._get("/test/endpoint")
+
+    mock_request.assert_called_once()
+
+
+@patch("src.core.saxo_client.request")
+def test_post_method_http_error(mock_request: MagicMock, saxo_client: SaxoClient) -> None:
+    """Test the _post method with an HTTP error."""
+    mock_response = MagicMock()
+    mock_response.status_code = 400
+    mock_response.json.return_value = {"ErrorCode": "InvalidRequest", "Message": "Bad request"}
+    mock_request.side_effect = requests.HTTPError("400 Client Error", response=mock_response)
+
+    saxo_client.access_token = "test-token"
+
+    with pytest.raises(requests.HTTPError):
+        saxo_client._post("/test/endpoint", json={"data": "test"})
+
+    mock_request.assert_called_once()
+
+
+@patch("src.core.saxo_client.request")
+def test_post_method_request_exception(mock_request: MagicMock, saxo_client: SaxoClient) -> None:
+    """Test the _post method with a request exception."""
+    mock_request.side_effect = requests.RequestException("Connection error")
+
+    saxo_client.access_token = "test-token"
+
+    with pytest.raises(requests.RequestException):
+        saxo_client._post("/test/endpoint", json={"data": "test"})
+
     mock_request.assert_called_once()

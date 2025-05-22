@@ -430,6 +430,43 @@ class TestSaxoClient:
 
         assert result is None  # nosec: B101 # pytest assertion
 
+    @patch("src.core.saxo_client.request")
+    def test_get_order_status_http_error(self, mock_request: MagicMock) -> None:
+        """Test getting order status with an HTTP error."""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.json.return_value = {
+            "ErrorCode": "OrderNotFound",
+            "Message": "Order not found",
+        }
+        mock_request.side_effect = requests.HTTPError("404 Not Found", response=mock_response)
+
+        self.client.access_token = "test_token"  # nosec: B105 # Testing value
+
+        with pytest.raises(SaxoApiError) as excinfo:
+            self.client.get_order_status("123")
+
+        assert "Failed to get order status for 123" in str(
+            excinfo.value
+        )  # nosec: B101 # pytest assertion
+        assert excinfo.value.status_code == 404  # nosec: B101 # pytest assertion
+        assert "OrderNotFound" in str(excinfo.value.response_body)  # nosec: B101 # pytest assertion
+
+    @patch("src.core.saxo_client.request")
+    def test_get_order_status_http_error_without_response(self, mock_request: MagicMock) -> None:
+        """Test getting order status with an HTTP error that has no response."""
+        mock_request.side_effect = requests.HTTPError("500 Internal Server Error")
+
+        self.client.access_token = "test_token"  # nosec: B105 # Testing value
+
+        with pytest.raises(SaxoApiError) as excinfo:
+            self.client.get_order_status("123")
+
+        assert "Failed to get order status for 123" in str(
+            excinfo.value
+        )  # nosec: B101 # pytest assertion
+        assert excinfo.value.status_code is None  # nosec: B101 # pytest assertion
+
     @patch("time.sleep", return_value=None)
     @patch("time.time", side_effect=[0, 10, 20, 30, 40, 50, 60])
     @patch("src.core.saxo_client.SaxoClient.get_order_status")
